@@ -40,7 +40,7 @@ export default function PhotographerPage() {
             <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-2xl opacity-20" />
               <img 
-                src="https://images.unsplash.com/photo-1502920917128-1aa50076495d?auto=format&fit=crop&q=80" 
+                src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80" 
                 alt="Fotógrafo"
                 className="relative rounded-3xl shadow-2xl"
               />
