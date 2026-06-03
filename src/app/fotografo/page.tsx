@@ -18,7 +18,7 @@ export default function PhotographerPage() {
                 A melhor plataforma para vender fotos online.
               </h1>
               <p className="text-xl text-muted-foreground mb-8">
-                A FotoEvento conecta seu talento a quem valoriza seu trabalho.
+                A BecoToy conecta seu talento a quem valoriza seu trabalho.
               </p>
               
               <Link 
@@ -155,7 +155,7 @@ export default function PhotographerPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="text-6xl text-primary mb-6">"</div>
           <blockquote className="text-2xl md:text-3xl font-medium mb-8 italic">
-            Venda de fotos esportivas mudou minha vida e a FotoEvento faz parte dessa mudança, é a melhor plataforma pra vender fotos!
+            Venda de fotos esportivas mudou minha vida e a BecoToy faz parte dessa mudança, é a melhor plataforma pra vender fotos!
           </blockquote>
           <div className="flex items-center justify-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary" />
@@ -174,7 +174,7 @@ export default function PhotographerPage() {
             Pronto para começar a vender fotos?
           </h2>
           <p className="text-muted-foreground text-lg mb-8">
-            Junte-se a milhares de fotógrafos que já estão vendendo na FotoEvento.
+            Junte-se a milhares de fotógrafos que já estão vendendo na BecoToy.
           </p>
           
           <Link 

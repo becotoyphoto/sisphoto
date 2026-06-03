@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { Camera, ShoppingCart, User, Menu, LogOut } from 'lucide-react';
+import { ShoppingCart, User, Menu, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
+import Logo from '@/components/Logo';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,12 +24,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center gap-2">
-              <Camera className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                FotoEvento Brasil
-              </span>
-            </Link>
+            <Logo />
           </div>
           
           <div className="hidden md:block">

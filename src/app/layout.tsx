@@ -9,7 +9,7 @@ import { CartProvider } from "@/contexts/CartContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "FotoEvento Brasil | Suas memórias em alta resolução",
+  title: "BecoToy | Suas memórias em alta resolução",
   description: "Marketplace de fotos de eventos. Encontre, compre e baixe suas fotos de corridas, futebol, formaturas e muito mais.",
 };
 

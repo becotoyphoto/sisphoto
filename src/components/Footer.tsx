@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { Camera, MapPin, Mail, Phone } from 'lucide-react';
+import { MapPin, Mail, Phone } from 'lucide-react';
+import Logo from '@/components/Logo';
 
 export default function Footer() {
   return (
@@ -9,12 +10,11 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Logo & Description */}
           <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <Camera className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold">FotoEvento Brasil</span>
-            </Link>
+            <div className="mb-4">
+              <Logo />
+            </div>
             <p className="text-muted-foreground text-sm max-w-md mb-6">
-              A FotoEvento é uma plataforma de fotografia que conecta fotógrafos e clientes para venda de fotos online, com tecnologia de reconhecimento facial e suporte completo 24h.
+              A BecoToy é uma plataforma de fotografia que conecta fotógrafos e clientes para venda de fotos online, com tecnologia de reconhecimento facial e suporte completo 24h.
             </p>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p className="flex items-center gap-2">
@@ -51,13 +51,13 @@ export default function Footer() {
         <div className="border-t border-white/10 pt-8 mt-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-muted-foreground">
             <div>
-              <h4 className="font-semibold text-foreground mb-1">FOTOEVENTO BRASIL LTDA.</h4>
+              <h4 className="font-semibold text-foreground mb-1">BECOTOY LTDA.</h4>
               <p>CNPJ: 00.000.000/0001-00</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-1">Contato</h4>
               <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> (00) 00000-0000</p>
-              <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> contato@fotoevento.com.br</p>
+              <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> contato@becotoy.com.br</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-1">Redes Sociais</h4>
@@ -73,7 +73,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="mt-12 pt-8 border-t border-white/5 text-center">
           <p className="text-muted-foreground text-xs">
-            © {new Date().getFullYear()} FotoEvento Brasil. Todos os direitos reservados.
+            © {new Date().getFullYear()} BecoToy. Todos os direitos reservados.
           </p>
         </div>
       </div>

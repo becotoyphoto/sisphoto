@@ -66,7 +66,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-          <p className="text-muted-foreground">Gerencie a plataforma FotoEvento</p>
+          <p className="text-muted-foreground">Gerencie a plataforma BecoToy</p>
         </div>
       </div>
 

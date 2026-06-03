@@ -94,7 +94,7 @@ export default function PhotographerRegisterPage() {
           </div>
           <h1 className="text-2xl font-bold mb-4">Cadastro Solicitado!</h1>
           <p className="text-muted-foreground mb-6">
-            Seu cadastro foi enviado para análise. Você receberá um e-mail quando sua conta for aprovada pela equipe FotoEvento.
+            Seu cadastro foi enviado para análise. Você receberá um e-mail quando sua conta for aprovada pela equipe BecoToy.
           </p>
           <Link 
             href="/login"

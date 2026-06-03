@@ -161,7 +161,7 @@ export default function HomePage() {
                 A melhor plataforma para vender fotos online.
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
-                A FotoEvento conecta seu talento a quem valoriza seu trabalho.
+                A BecoToy conecta seu talento a quem valoriza seu trabalho.
               </p>
               
               <div className="space-y-4">
@@ -218,7 +218,7 @@ export default function HomePage() {
       {/* Features */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Por que escolher a FotoEvento?</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">Por que escolher a BecoToy?</h2>
           
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center p-6">
