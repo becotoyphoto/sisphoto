@@ -36,28 +36,31 @@ export default function BottomNavBar() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="absolute bottom-16 left-0 right-0 glass border-t border-white/10 p-4 space-y-2"
+            className="absolute bottom-24 left-4 right-4 rounded-3xl border border-white/10 bg-black/85 p-4 shadow-2xl backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <Link href="/categorias" onClick={() => setOpen(false)} className="block px-4 py-3 rounded-lg hover:bg-white/10 font-medium">Categorias</Link>
-            <Link href="/fotografo" onClick={() => setOpen(false)} className="block px-4 py-3 rounded-lg hover:bg-white/10 font-medium">Sou fotógrafo</Link>
+            <div className="space-y-2">
+              <Link href="/categorias" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Categorias</Link>
+              <Link href="/fotografo" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Sou fotógrafo</Link>
             {user ? (
-              <Link href={accountHref} onClick={() => setOpen(false)} className="block px-4 py-3 rounded-lg hover:bg-white/10 font-medium">
+                <Link href={accountHref} onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">
                 Minha conta
               </Link>
             ) : (
               <>
-                <Link href="/login" onClick={() => setOpen(false)} className="block px-4 py-3 rounded-lg hover:bg-white/10 font-medium">Entrar</Link>
-                <Link href="/cadastrar" onClick={() => setOpen(false)} className="block px-4 py-3 rounded-lg bg-primary text-center font-medium">Criar conta</Link>
+                  <Link href="/login" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Entrar</Link>
+                  <Link href="/cadastrar" onClick={() => setOpen(false)} className="block rounded-2xl bg-primary px-4 py-3 text-center font-medium text-white">Criar conta</Link>
               </>
             )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-white/10">
-        <div className="grid grid-cols-5 h-16">
+      <nav className="md:hidden fixed inset-x-0 bottom-4 z-50 px-3">
+        <div className="mx-auto max-w-md rounded-[28px] border border-white/10 bg-white/95 text-slate-700 shadow-[0_18px_50px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:bg-[#0f172a]/90 dark:text-slate-200">
+          <div className="grid h-[74px] grid-cols-5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = tab.href !== '#opcoes' && pathname === tab.href;
@@ -68,7 +71,9 @@ export default function BottomNavBar() {
                 <button
                   key={tab.label}
                   onClick={() => setOpen((v) => !v)}
-                  className="flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className={`flex flex-col items-center justify-center gap-1 rounded-[24px] text-[11px] transition-colors ${
+                    open ? 'text-primary' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                  }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span>{tab.label}</span>
@@ -80,20 +85,23 @@ export default function BottomNavBar() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`relative flex flex-col items-center justify-center gap-1 text-xs transition-colors ${
-                  isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                className={`relative mx-1 my-2 flex flex-col items-center justify-center gap-1 rounded-[24px] text-[11px] transition-all ${
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
                 <Icon className="h-5 w-5" />
                 <span>{tab.label}</span>
                 {showBadge && (
-                  <span className="absolute top-1 right-1/2 translate-x-4 bg-primary text-white text-[9px] rounded-full h-4 min-w-4 px-1 flex items-center justify-center font-bold">
+                  <span className="absolute right-1/2 top-1 translate-x-4 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
                     {itemCount}
                   </span>
                 )}
               </Link>
             );
           })}
+          </div>
         </div>
       </nav>
     </>

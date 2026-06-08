@@ -24,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="dark">
-      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground pb-16 md:pb-0`}>
+      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground pb-24 md:pb-0`}>
         <AuthProvider>
           <CartProvider>
             <Navbar />
