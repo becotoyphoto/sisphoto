@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, Calendar, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatLocalDate } from '@/lib/utils';
 
 interface PhotographerEvent {
   id: string;
@@ -210,7 +211,7 @@ export default function PhotographerDashboard() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
-                      {new Date(event.date).toLocaleDateString('pt-BR')}
+                      {formatLocalDate(event.date)}
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {event.photos?.[0]?.count || 0}

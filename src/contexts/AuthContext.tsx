@@ -102,8 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const nextProfile = data.user ? await fetchProfile(data.user.id) : null;
+      const fallbackRole = data.user?.user_metadata?.role as Profile['role'] | undefined;
+      const resolvedProfile =
+        nextProfile ||
+        (data.user
+          ? {
+              id: data.user.id,
+              full_name: (data.user.user_metadata?.full_name as string | null) ?? null,
+              avatar_url: null,
+              role: fallbackRole || 'client',
+              is_approved: fallbackRole === 'photographer' ? true : false,
+              pix_key: null,
+            }
+          : null);
 
-      return { error: null, profile: nextProfile };
+      return { error: null, profile: resolvedProfile };
     } catch (error) {
       return { error: error as Error, profile: null };
     }

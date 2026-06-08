@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { getCategories, Category } from '@/lib/database';
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image_url: string | null;
+}
 
 const localImages: Record<string, string> = {
   'futebol': '/images/categorias/futebol.jfif',
@@ -54,8 +60,15 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     async function loadCategories() {
-      const data = await getCategories();
-      setCategories(data);
+      try {
+        const res = await fetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error('Error loading categories:', err);
+      }
       setIsLoading(false);
     }
     loadCategories();

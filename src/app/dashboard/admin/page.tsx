@@ -163,19 +163,16 @@ export default function AdminDashboard() {
           <p className="text-sm text-muted-foreground mt-1">Adicione ou edite categorias</p>
         </Link>
 
-        <Link 
-          href="/dashboard/admin/eventos"
-          className="bg-card border border-white/10 p-6 rounded-2xl hover:border-primary/50 transition-all group"
-        >
-          <div className="flex items-center justify-between">
+        <div className="bg-card border border-white/10 p-6 rounded-2xl">
+          <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-orange-500/10 rounded-xl">
               <Camera className="h-6 w-6 text-orange-500" />
             </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
           </div>
           <h3 className="font-bold text-lg mt-4">Ver Eventos</h3>
           <p className="text-sm text-muted-foreground mt-1">{stats?.eventsCount || 0} evento(s) cadastrado(s)</p>
-        </Link>
+        </div>
       </div>
 
       {/* Recent Photographers */}

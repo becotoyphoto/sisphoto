@@ -62,9 +62,9 @@ export default function Footer() {
             <div>
               <h4 className="font-semibold text-foreground mb-1">Redes Sociais</h4>
               <div className="flex gap-4 mt-2">
-                <a href="#" className="hover:text-primary transition-colors">Instagram</a>
-                <a href="#" className="hover:text-primary transition-colors">Facebook</a>
-                <a href="#" className="hover:text-primary transition-colors">Twitter</a>
+                <a href="https://www.instagram.com/becotoy/" className="hover:text-primary transition-colors">Instagram</a>
+                <a href="https://www.facebook.com/becotoy/" className="hover:text-primary transition-colors">Facebook</a>
+                <a href="https://www.tiktok.com/@becotoy" className="hover:text-primary transition-colors">Tiktok</a>
               </div>
             </div>
           </div>

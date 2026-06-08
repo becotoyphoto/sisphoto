@@ -4,14 +4,9 @@ import { createServiceClient, isServiceRoleConfigured } from '@/lib/supabase-ser
 
 const seedUsers = [
   { email: 'becotoy@gmail.com', password: 'moraes00', full_name: 'Admin Becotoy', role: 'admin', is_approved: true },
-  { email: 'admin2@fotoevento.com', password: 'moraes00', full_name: 'Admin FotoEvento 2', role: 'admin', is_approved: true },
-  { email: 'admin3@fotoevento.com', password: 'moraes00', full_name: 'Admin FotoEvento 3', role: 'admin', is_approved: true },
-  { email: 'fotografo1@fotoevento.com', password: 'moraes00', full_name: 'Fotografo Teste 1', role: 'photographer', is_approved: true },
-  { email: 'fotografo2@fotoevento.com', password: 'moraes00', full_name: 'Fotografo Teste 2', role: 'photographer', is_approved: true },
-  { email: 'fotografo3@fotoevento.com', password: 'moraes00', full_name: 'Fotografo Teste 3', role: 'photographer', is_approved: true },
-  { email: 'cliente1@fotoevento.com', password: 'moraes00', full_name: 'Cliente Teste 1', role: 'client', is_approved: false },
-  { email: 'cliente2@fotoevento.com', password: 'moraes00', full_name: 'Cliente Teste 2', role: 'client', is_approved: false },
-  { email: 'cliente3@fotoevento.com', password: 'moraes00', full_name: 'Cliente Teste 3', role: 'client', is_approved: false },
+  { email: 'admin2@fotoevento.com', password: 'moraes00', full_name: 'Admin Teste', role: 'admin', is_approved: true },
+  { email: 'fotografo@sisphoto.com', password: 'moraes00', full_name: 'Fotógrafo Teste', role: 'photographer', is_approved: true },
+  { email: 'cliente@sisphoto.com', password: 'moraes00', full_name: 'Cliente Teste', role: 'client', is_approved: false },
 ] as const;
 
 async function getOrCreateUserByEmail(

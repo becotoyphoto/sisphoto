@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createServiceClient } from '@/lib/supabase-service';
 
 export async function POST(request: Request) {
   try {
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
+    const serviceSupabase = createServiceClient();
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId');
     
@@ -62,10 +64,32 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing eventId' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data: event, error: eventError } = await serviceSupabase
+      .from('events')
+      .select('id, status, photographer_id')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
+    }
+
+    const canView =
+      event.status === 'published' || (user && event.photographer_id === user.id);
+
+    if (!canView) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+    }
+
+    const { data, error } = await serviceSupabase
       .from('photos')
       .select('*')
-      .eq('event_id', eventId);
+      .eq('event_id', eventId)
+      .order('created_at', { ascending: true });
 
     if (error) {
       console.error('Error fetching photos:', error);

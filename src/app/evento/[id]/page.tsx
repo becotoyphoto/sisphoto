@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { ShoppingCart, ArrowLeft, ZoomIn, Info, Loader2, Check, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { getEventById, getPhotosByEventId, getPhotoUrl, Event, Photo } from '@/lib/database';
+import { getEventById, getPhotoUrl, Event, Photo } from '@/lib/database';
+import { formatLocalDate, formatPrice } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 
 export default function EventPage() {
@@ -21,10 +22,13 @@ export default function EventPage() {
       if (!id) return;
       
       setIsLoading(true);
-      const [eventData, photosData] = await Promise.all([
+      const [eventData, photosResponse] = await Promise.all([
         getEventById(id as string),
-        getPhotosById(id as string)
+        fetch(`/api/photos?eventId=${id}`)
       ]);
+      const photosData = photosResponse.ok
+        ? ((await photosResponse.json()) as Photo[])
+        : [];
       
       setEvent(eventData);
       setPhotos(photosData);
@@ -84,16 +88,18 @@ export default function EventPage() {
           </Link>
           <h1 className="text-3xl font-bold">{event.name}</h1>
           <p className="text-muted-foreground">
-            {new Date(event.date).toLocaleDateString('pt-BR')} • {event.city}, {event.state}
+            {formatLocalDate(event.date)} • {event.city}, {event.state}
           </p>
         </div>
         
-        <div className="flex items-center gap-4 bg-primary/10 border border-primary/20 p-4 rounded-2xl">
-          <Info className="h-5 w-5 text-primary" />
-          <p className="text-sm">
-            Preço por foto: <span className="font-bold text-primary">R$ 15,00</span>
-          </p>
-        </div>
+        {photos.length > 0 && (
+          <div className="flex items-center gap-4 bg-primary/10 border border-primary/20 p-4 rounded-2xl">
+            <Info className="h-5 w-5 text-primary" />
+            <p className="text-sm">
+              Preço por foto: <span className="font-bold text-primary">{formatPrice(Number(photos[0].price))}</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Gallery Grid */}
@@ -116,7 +122,7 @@ export default function EventPage() {
               {/* Watermark Overlay */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30 rotate-45">
                 <span className="text-lg font-black tracking-widest text-white/50 border-2 border-white/50 p-1 uppercase">
-                  FOTOEVENTO
+                  SisPhoto
                 </span>
               </div>
 
@@ -222,9 +228,4 @@ export default function EventPage() {
       )}
     </div>
   );
-}
-
-async function getPhotosById(eventId: string): Promise<Photo[]> {
-  const { getPhotosByEventId } = await import('@/lib/database');
-  return getPhotosByEventId(eventId);
 }

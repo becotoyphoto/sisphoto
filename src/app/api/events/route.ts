@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createServiceClient } from '@/lib/supabase-service';
 
 export async function POST(request: Request) {
   try {
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const supabase = await createClient();
+    const serviceSupabase = createServiceClient();
     
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -66,12 +68,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const { data: events, error } = await serviceSupabase
       .from('events')
       .select(`
-        *,
-        category:categories(*),
-        photos(count)
+        id,
+        name,
+        city,
+        state,
+        date,
+        status,
+        cover_image_url,
+        category:categories(name)
       `)
       .eq('photographer_id', user.id)
       .order('created_at', { ascending: false });
@@ -80,6 +87,31 @@ export async function GET() {
       console.error('Error fetching events:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    const eventIds = events?.map((event) => event.id) || [];
+    const photoCountByEventId = new Map<string, number>();
+
+    if (eventIds.length > 0) {
+      const { data: photoRows, error: photosError } = await serviceSupabase
+        .from('photos')
+        .select('event_id')
+        .in('event_id', eventIds);
+
+      if (photosError) {
+        console.error('Error fetching photo counts:', photosError);
+        return NextResponse.json({ error: photosError.message }, { status: 500 });
+      }
+
+      for (const photo of photoRows || []) {
+        const currentCount = photoCountByEventId.get(photo.event_id) || 0;
+        photoCountByEventId.set(photo.event_id, currentCount + 1);
+      }
+    }
+
+    const data = (events || []).map((event) => ({
+      ...event,
+      photos: [{ count: photoCountByEventId.get(event.id) || 0 }],
+    }));
 
     return NextResponse.json(data);
   } catch (error) {

@@ -11,7 +11,7 @@ export async function applyWatermarkToCanvas(
   options: WatermarkOptions = {}
 ): Promise<Blob> {
   const {
-    text = 'FOTOEVENTO BRASIL',
+    text = 'SisPhoto',
     opacity = 0.3,
     fontSize = 60,
     color = '255, 255, 255',

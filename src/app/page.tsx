@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Camera, Star, Award, Users, Zap, Shield, CreditCard, Smartphone, TrendingUp, Gift, Trophy, Dumbbell, Bike, Waves, GraduationCap, PartyPopper, Play, Target, Car, Dumbbell as Gym, Wind, Mountain, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
@@ -81,6 +85,19 @@ const cities = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = searchTerm.trim();
+    if (term) {
+      router.push(`/buscar?q=${encodeURIComponent(term)}`);
+    } else {
+      router.push('/buscar');
+    }
+  };
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -99,14 +116,22 @@ export default function HomePage() {
               Milhares de fotos de eventos esportivos e festas em um só lugar
             </p>
             
-            <div className="max-w-2xl mx-auto relative">
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto relative">
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
               <input 
                 type="text"
                 placeholder="Buscar evento, categoria ou fotógrafo..."
-                className="w-full bg-white dark:bg-gray-900 border border-white/20 rounded-full py-5 pl-16 pr-8 text-lg focus:ring-2 focus:ring-primary focus:outline-none shadow-xl"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border border-white/20 rounded-full py-5 pl-16 pr-24 text-lg focus:ring-2 focus:ring-primary focus:outline-none shadow-xl"
               />
-            </div>
+              <button 
+                type="submit"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary hover:bg-primary/90 px-6 py-2.5 rounded-full font-semibold transition-colors"
+              >
+                Buscar
+              </button>
+            </form>
           </div>
         </div>
       </section>

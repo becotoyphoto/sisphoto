@@ -19,6 +19,13 @@ export default function Navbar() {
     router.push('/');
   };
 
+  const dashboardHref =
+    profile?.role === 'admin'
+      ? '/dashboard/admin'
+      : profile?.role === 'photographer'
+        ? '/dashboard/fotografo'
+        : '/dashboard/cliente';
+
   return (
     <nav className="sticky top-0 z-50 glass border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -48,7 +55,12 @@ export default function Navbar() {
             
             {user ? (
               <div className="flex items-center gap-2">
-                <Link href="/dashboard/cliente" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                {profile?.role === 'admin' && (
+                  <Link href="/dashboard/admin" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                    Admin
+                  </Link>
+                )}
+                <Link href={dashboardHref} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full text-sm font-medium transition-colors">
                   <User className="h-4 w-4" />
                   {profile?.full_name || user.email?.split('@')[0]}
                 </Link>
@@ -96,7 +108,10 @@ export default function Navbar() {
             
             {user ? (
               <>
-                <Link href="/dashboard/cliente" className="block px-3 py-2 rounded-md text-base font-medium bg-white/5">Minha Conta</Link>
+                {profile?.role === 'admin' && (
+                  <Link href="/dashboard/admin" className="block px-3 py-2 rounded-md text-base font-medium bg-primary/10 text-primary">Admin</Link>
+                )}
+                <Link href={dashboardHref} className="block px-3 py-2 rounded-md text-base font-medium bg-white/5">Minha Conta</Link>
                 <button 
                   onClick={handleLogout}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-destructive hover:bg-white/5"

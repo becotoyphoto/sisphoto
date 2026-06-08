@@ -59,7 +59,7 @@ export default function EventUploadPage() {
   const applyWatermarkToPhoto = async (photo: PhotoUpload): Promise<PhotoUpload> => {
     try {
       const watermarkBlob = await applyWatermarkToCanvas(photo.originalFile, {
-        text: 'FOTOEVENTO BRASIL',
+        text: 'SisPhoto',
         opacity: 0.25,
         fontSize: 48,
       });

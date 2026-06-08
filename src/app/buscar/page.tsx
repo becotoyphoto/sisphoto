@@ -4,12 +4,30 @@ import { useState, useEffect, Suspense } from 'react';
 import { Search, MapPin, Calendar, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getEvents, getCategories, Category, Event } from '@/lib/database';
+import { getCategories } from '@/lib/database';
+import { formatLocalDate } from '@/lib/utils';
+
+interface SearchEvent {
+  id: string;
+  name: string;
+  description: string | null;
+  city: string;
+  state: string;
+  date: string;
+  cover_image_url: string | null;
+  category: { id: string; name: string; slug: string } | null;
+}
+
+interface SearchCategory {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 function SearchContent() {
   const searchParams = useSearchParams();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [events, setEvents] = useState<SearchEvent[]>([]);
+  const [categories, setCategories] = useState<SearchCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [category, setCategory] = useState(searchParams.get('categoria') || '');
@@ -18,12 +36,28 @@ function SearchContent() {
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
-      const [eventsData, categoriesData] = await Promise.all([
-        getEvents({ category, city, search: searchTerm }),
-        getCategories()
-      ]);
-      setEvents(eventsData);
-      setCategories(categoriesData);
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      if (city) params.set('city', city);
+      if (searchTerm) params.set('q', searchTerm);
+
+      try {
+        const [eventsRes, categoriesData] = await Promise.all([
+          fetch(`/api/search?${params.toString()}`),
+          getCategories()
+        ]);
+
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+          setEvents(eventsData);
+        } else {
+          setEvents([]);
+        }
+        setCategories(categoriesData);
+      } catch (err) {
+        console.error('Error loading search data:', err);
+        setEvents([]);
+      }
       setIsLoading(false);
     }
     loadData();
@@ -33,8 +67,23 @@ function SearchContent() {
     e.preventDefault();
     async function runSearch() {
       setIsLoading(true);
-      const eventsData = await getEvents({ category, city, search: searchTerm });
-      setEvents(eventsData);
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      if (city) params.set('city', city);
+      if (searchTerm) params.set('q', searchTerm);
+
+      try {
+        const res = await fetch(`/api/search?${params.toString()}`);
+        if (res.ok) {
+          const eventsData = await res.json();
+          setEvents(eventsData);
+        } else {
+          setEvents([]);
+        }
+      } catch (err) {
+        console.error('Error searching events:', err);
+        setEvents([]);
+      }
       setIsLoading(false);
     }
     runSearch();
@@ -70,7 +119,7 @@ function SearchContent() {
               <select 
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-slate-950 text-white border border-white/10 rounded-lg p-2 focus:ring-primary focus:outline-none"
               >
                 <option value="">Todas</option>
                 {categories.map((cat) => (
@@ -150,7 +199,7 @@ function SearchContent() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {new Date(event.date).toLocaleDateString('pt-BR')}
+                        {formatLocalDate(event.date)}
                       </div>
                     </div>
                     

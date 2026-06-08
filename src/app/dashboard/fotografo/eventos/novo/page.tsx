@@ -8,10 +8,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCategories, Category } from '@/lib/database';
 
 const brazilianStates = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
-  'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
-  'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  'RJ', 'SP', 'MG', 'ES', 'PR', 'SC', 'RS', 'BA', 'GO', 'DF',
+  'PE', 'CE', 'PA', 'AM', 'AC', 'AL', 'AP', 'MA', 'MT', 'MS',
+  'PB', 'PI', 'RN', 'RO', 'RR', 'SE', 'TO'
 ];
+
+const selectClassName =
+  'w-full bg-slate-950 text-white border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none';
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -26,7 +29,7 @@ export default function NewEventPage() {
     description: '',
     category_id: '',
     city: '',
-    state: 'SP',
+    state: 'RJ',
     date: '',
     cover_image_url: '',
     status: 'draft',
@@ -69,7 +72,7 @@ export default function NewEventPage() {
         throw new Error(data.error || 'Erro ao criar evento');
       }
 
-      router.push(`/dashboard/fotografo/eventos/${data.id}/upload`);
+      router.push(`/dashboard/fotografo/eventos/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar evento');
     } finally {
@@ -155,11 +158,11 @@ export default function NewEventPage() {
                 name="category_id"
                 value={formData.category_id}
                 onChange={handleChange}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+                className={selectClassName}
               >
-                <option value="">Selecione uma categoria</option>
+                <option value="" className="bg-slate-950 text-white">Selecione uma categoria</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id} className="bg-slate-950 text-white">{cat.name}</option>
                 ))}
               </select>
             </div>
@@ -204,10 +207,10 @@ export default function NewEventPage() {
                 value={formData.state}
                 onChange={handleChange}
                 required
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+                className={selectClassName}
               >
                 {brazilianStates.map((state) => (
-                  <option key={state} value={state}>{state}</option>
+                  <option key={state} value={state} className="bg-slate-950 text-white">{state}</option>
                 ))}
               </select>
             </div>
@@ -231,10 +234,10 @@ export default function NewEventPage() {
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              className={selectClassName}
             >
-              <option value="draft">Rascunho</option>
-              <option value="published">Publicado</option>
+              <option value="draft" className="bg-slate-950 text-white">Rascunho</option>
+              <option value="published" className="bg-slate-950 text-white">Publicado</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
               Eventos em rascunho não são visíveis ao público.

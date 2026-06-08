@@ -34,14 +34,24 @@ const mockOrders = [
 ];
 
 export default function ClientDashboard() {
-  const { user, profile, isLoading } = useAuth();
+  const { user, profile, isLoading, signOut } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
+      return;
     }
-  }, [user, isLoading, router]);
+
+    if (!isLoading && user && profile?.role === 'photographer') {
+      router.push('/dashboard/fotografo');
+      return;
+    }
+
+    if (!isLoading && user && profile?.role === 'admin') {
+      router.push('/dashboard/admin');
+    }
+  }, [user, profile, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -72,7 +82,6 @@ export default function ClientDashboard() {
           </Link>
           <button 
             onClick={async () => {
-              const { signOut } = useAuth();
               await signOut();
               router.push('/');
             }}

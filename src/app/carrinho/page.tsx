@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Trash2, CreditCard, ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
@@ -7,26 +8,45 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 export default function CartPage() {
-  const { items, total, removeItem, clearCart } = useCart();
+  const { items, total, removeItem, clearCart, cartId } = useCart();
   const { user } = useAuth();
   const router = useRouter();
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const handleCheckout = async () => {
     if (!user) {
       router.push('/login');
       return;
     }
-    
-    const response = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-    
-    const data = await response.json();
-    
-    if (data.init_point) {
+
+    setCheckoutError(null);
+    setIsCheckingOut(true);
+
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items, cartId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Nao foi possivel iniciar o pagamento.');
+      }
+
+      if (!data.init_point) {
+        throw new Error('O Mercado Pago nao retornou um link de pagamento.');
+      }
+
       window.location.href = data.init_point;
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error ? error.message : 'Nao foi possivel iniciar o pagamento.'
+      );
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
@@ -97,13 +117,29 @@ export default function CartPage() {
                     <span className="text-primary">R$ {total.toFixed(2)}</span>
                   </div>
                 </div>
+
+                {checkoutError && (
+                  <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {checkoutError}
+                  </div>
+                )}
                 
                 <button 
                   onClick={handleCheckout}
-                  className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors"
+                  disabled={isCheckingOut}
+                  className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors disabled:opacity-60"
                 >
-                  <CreditCard className="h-5 w-5" />
-                  Pagar com Mercado Pago
+                  {isCheckingOut ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Iniciando pagamento...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-5 w-5" />
+                      Pagar com Mercado Pago
+                    </>
+                  )}
                 </button>
                 
                 <button 
