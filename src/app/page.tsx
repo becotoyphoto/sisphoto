@@ -78,6 +78,9 @@ const categories = [
   { name: 'Altinha', slug: 'altinha', icon: Trophy },
 ];
 
+const mobileCategorySlugs = ['futebol', 'corrida', 'eventos', 'futevolei'];
+const mobileCategories = categories.filter(c => mobileCategorySlugs.includes(c.slug));
+
 const cities = [
   'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Porto Alegre', 'Salvador',
   'Curitiba', 'Fortaleza', 'Brasília', 'Manaus', 'Recife', 'Belém', 'Goiânia',
@@ -146,7 +149,34 @@ export default function HomePage() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {/* Mobile: only 4 specific categories */}
+          <div className="grid grid-cols-2 gap-4 md:hidden">
+            {mobileCategories.map((category) => {
+              const Icon = category.icon;
+              return (
+                <Link
+                  key={category.slug}
+                  href={`/buscar?categoria=${category.slug}`}
+                  className="group relative aspect-square rounded-2xl overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                >
+                  <img 
+                    src={getImageUrl(category.slug)}
+                    alt={category.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-white" />
+                      <span className="text-xs font-bold text-white drop-shadow-lg">{category.name}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {/* Desktop: show 12 categories */}
+          <div className="hidden md:grid md:grid-cols-4 lg:grid-cols-6 gap-4">
             {categories.slice(0, 12).map((category) => {
               const Icon = category.icon;
               return (

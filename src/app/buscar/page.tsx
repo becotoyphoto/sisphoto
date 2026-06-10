@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { Search, MapPin, Calendar, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getCategories } from '@/lib/database';
 import { formatLocalDate } from '@/lib/utils';
 
 interface SearchEvent {
@@ -42,9 +41,9 @@ function SearchContent() {
       if (searchTerm) params.set('q', searchTerm);
 
       try {
-        const [eventsRes, categoriesData] = await Promise.all([
+        const [eventsRes, categoriesRes] = await Promise.all([
           fetch(`/api/search?${params.toString()}`),
-          getCategories()
+          fetch('/api/categories')
         ]);
 
         if (eventsRes.ok) {
@@ -53,7 +52,10 @@ function SearchContent() {
         } else {
           setEvents([]);
         }
-        setCategories(categoriesData);
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          setCategories(categoriesData);
+        }
       } catch (err) {
         console.error('Error loading search data:', err);
         setEvents([]);

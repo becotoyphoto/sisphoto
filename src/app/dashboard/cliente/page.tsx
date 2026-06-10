@@ -1,191 +1,267 @@
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { Camera, Download, Package, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { ShoppingCart, Download, Loader2, Camera, ArrowLeft, CheckCircle, Clock, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatPrice } from '@/lib/utils';
 
-const mockOrders = [
-  {
-    id: '1',
-    eventName: 'Maratona de São Paulo 2024',
-    date: '21/04/2024',
-    photos: 5,
-    total: 75.00,
-    status: 'paid',
-    images: [
-      'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&q=80&w=200',
-      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=200',
-      'https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=200',
-    ]
-  },
-  {
-    id: '2',
-    eventName: 'Copa Regional Curitiba',
-    date: '15/05/2024',
-    photos: 3,
-    total: 45.00,
-    status: 'paid',
-    images: [
-      'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=200',
-    ]
-  }
-];
+interface OrderItem {
+  id: string;
+  order_id: string;
+  photo_id: string;
+  price_at_purchase: number;
+  photo: {
+    id: string;
+    storage_path_watermark: string;
+    storage_path_original: string;
+    price: number;
+    thumbnail_url: string | null;
+  } | null;
+}
+
+interface Order {
+  id: string;
+  user_id: string;
+  total_amount: number;
+  status: string;
+  mercadopago_id: string | null;
+  created_at: string;
+  items: OrderItem[];
+}
+
+const formatDate = (dateStr: string) => {
+  const d = new Date(dateStr + 'Z');
+  return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+};
+
+const statusLabel: Record<string, { label: string; icon: any; color: string }> = {
+  paid: { label: 'Pago', icon: CheckCircle, color: 'text-green-500' },
+  pending: { label: 'Pendente', icon: Clock, color: 'text-yellow-500' },
+  cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-500' },
+};
 
 export default function ClientDashboard() {
-  const { user, profile, isLoading, signOut } = useAuth();
   const router = useRouter();
+  const { user, profile, isLoading: authLoading, signOut } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       router.push('/login');
       return;
     }
 
-    if (!isLoading && user && profile?.role === 'photographer') {
+    if (!authLoading && user && profile?.role === 'photographer') {
       router.push('/dashboard/fotografo');
       return;
     }
 
-    if (!isLoading && user && profile?.role === 'admin') {
+    if (!authLoading && user && profile?.role === 'admin') {
       router.push('/dashboard/admin');
+      return;
     }
-  }, [user, profile, isLoading, router]);
 
-  if (isLoading) {
+    if (!authLoading && user) {
+      loadOrders();
+    }
+  }, [user, profile, authLoading, router]);
+
+  const loadOrders = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/orders/my');
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data);
+      }
+    } catch (err) {
+      console.error('Error loading orders:', err);
+    }
+    setIsLoading(false);
+  };
+
+  const handleDownload = async (photoId: string) => {
+    setDownloading(photoId);
+    try {
+      const res = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo_id: photoId }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert(errorData.error || 'Erro ao baixar foto');
+        return;
+      }
+
+      const { url } = await res.json();
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error('Error downloading:', err);
+      alert('Erro ao baixar foto');
+    }
+    setDownloading(null);
+  };
+
+  const handleDownloadAll = async (items: OrderItem[]) => {
+    const paidItems = items.filter(item => item.photo?.storage_path_original);
+    for (const item of paidItems) {
+      await handleDownload(item.photo_id);
+    }
+  };
+
+  if (authLoading || isLoading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  const totalCompras = orders.length;
+  const totalFotos = orders.reduce((sum, o) => sum + o.items.length, 0);
+  const totalGasto = orders.reduce((sum, o) => sum + Number(o.total_amount), 0);
+  const paidOrders = orders.filter(o => o.status === 'paid');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Minha Conta</h1>
-          <p className="text-muted-foreground">Bem-vindo, {profile?.full_name || user.email}</p>
+          <p className="text-muted-foreground">Bem-vindo, {profile?.full_name || 'Cliente'}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Link 
-            href="/dashboard/cliente" 
-            className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium"
+        <div className="flex gap-3">
+          <Link
+            href="/buscar"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
-            Minhas Compras
+            <Camera className="h-4 w-4" />
+            Buscar fotos
           </Link>
-          <button 
-            onClick={async () => {
-              await signOut();
-              router.push('/');
-            }}
-            className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg font-medium hover:bg-white/10 transition-all"
+          <button
+            onClick={signOut}
+            className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             Sair
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
-        <div className="bg-card border border-white/10 p-6 rounded-2xl">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <Package className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Total de compras</p>
-              <p className="text-2xl font-bold">{mockOrders.length}</p>
-            </div>
-          </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-card border border-white/10 rounded-2xl p-6">
+          <p className="text-sm text-muted-foreground mb-1">Total de compras</p>
+          <p className="text-3xl font-bold">{totalCompras}</p>
         </div>
-        <div className="bg-card border border-white/10 p-6 rounded-2xl">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 rounded-xl">
-              <Camera className="h-6 w-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Fotos compradas</p>
-              <p className="text-2xl font-bold">{mockOrders.reduce((acc, o) => acc + o.photos, 0)}</p>
-            </div>
-          </div>
+        <div className="bg-card border border-white/10 rounded-2xl p-6">
+          <p className="text-sm text-muted-foreground mb-1">Fotos compradas</p>
+          <p className="text-3xl font-bold">{totalFotos}</p>
         </div>
-        <div className="bg-card border border-white/10 p-6 rounded-2xl">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-secondary/10 rounded-xl">
-              <CheckCircle className="h-6 w-6 text-secondary" />
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Valor total gasto</p>
-              <p className="text-2xl font-bold">R$ {mockOrders.reduce((acc, o) => acc + o.total, 0).toFixed(2)}</p>
-            </div>
-          </div>
+        <div className="bg-card border border-white/10 rounded-2xl p-6">
+          <p className="text-sm text-muted-foreground mb-1">Valor total gasto</p>
+          <p className="text-3xl font-bold text-primary">{formatPrice(totalGasto)}</p>
         </div>
       </div>
 
-      {/* Orders */}
-      <div>
-        <h2 className="text-xl font-bold mb-6">Minhas Compras</h2>
-        
-        <div className="space-y-6">
-          {mockOrders.map((order) => (
-            <div key={order.id} className="bg-card border border-white/10 rounded-2xl overflow-hidden">
-              <div className="p-6 border-b border-white/10">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg">{order.eventName}</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        {order.date}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Camera className="h-4 w-4" />
-                        {order.photos} fotos
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-xl font-bold text-green-500">R$ {order.total.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-medium">Suas fotos:</p>
-                  <button className="flex items-center gap-2 bg-primary hover:bg-primary/90 px-4 py-2 rounded-lg font-medium transition-all">
-                    <Download className="h-4 w-4" />
-                    Baixar todas
-                  </button>
-                </div>
-                
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  {order.images.map((img, i) => (
-                    <div key={i} className="relative flex-shrink-0">
-                      <img 
-                        src={img} 
-                        alt={`Foto ${i + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
-                      <button className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                        <Download className="h-6 w-6 text-white" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Orders List */}
+      <h2 className="text-2xl font-bold mb-6">Minhas Compras</h2>
+
+      {orders.length === 0 ? (
+        <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
+          <Camera className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-xl text-muted-foreground mb-2">Você ainda não tem compras</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Busque por eventos e encontre suas fotos!
+          </p>
+          <Link
+            href="/buscar"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
+          >
+            <Camera className="h-4 w-4" />
+            Buscar eventos
+          </Link>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-6">
+          {orders.map((order) => {
+            const statusInfo = statusLabel[order.status] || statusLabel.pending;
+            const StatusIcon = statusInfo.icon;
+            const isPaid = order.status === 'paid';
+
+            return (
+              <div key={order.id} className="bg-card border border-white/10 rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <StatusIcon className={`h-5 w-5 ${statusInfo.color}`} />
+                    <span className={`font-medium ${statusInfo.color}`}>{statusInfo.label}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatDate(order.created_at)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-lg">{formatPrice(order.total_amount)}</span>
+                    {isPaid && order.items.length > 1 && (
+                      <button
+                        onClick={() => handleDownloadAll(order.items)}
+                        className="flex items-center gap-2 bg-primary hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Download className="h-4 w-4" />
+                        Baixar todas
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {order.items.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="relative group aspect-square bg-white/5 rounded-xl overflow-hidden border border-white/10">
+                        {item.photo?.thumbnail_url ? (
+                          <img
+                            src={item.photo.thumbnail_url}
+                            alt="Foto"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Camera className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        
+                        {isPaid && (
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              onClick={() => handleDownload(item.photo_id)}
+                              disabled={downloading === item.photo_id}
+                              className="flex items-center gap-2 bg-primary hover:bg-primary/90 px-4 py-2 rounded-full text-xs font-bold transition-colors"
+                            >
+                              {downloading === item.photo_id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Download className="h-3 w-3" />
+                              )}
+                              {downloading === item.photo_id ? '...' : 'Baixar'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {order.items.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum item neste pedido.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

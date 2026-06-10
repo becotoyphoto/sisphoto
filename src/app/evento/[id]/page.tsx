@@ -1,16 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShoppingCart, ArrowLeft, ZoomIn, Info, Loader2, Check, Trash2 } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, ZoomIn, Info, Loader2, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { getEventById, getPhotoUrl, Event, Photo } from '@/lib/database';
 import { formatLocalDate, formatPrice } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 
+interface Photo {
+  id: string;
+  event_id: string;
+  storage_path_watermark: string;
+  storage_path_original: string;
+  price: number;
+  metadata: any;
+}
+
 export default function EventPage() {
   const { id } = useParams();
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<any>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -22,10 +30,12 @@ export default function EventPage() {
       if (!id) return;
       
       setIsLoading(true);
-      const [eventData, photosResponse] = await Promise.all([
-        getEventById(id as string),
+      const [eventRes, photosResponse] = await Promise.all([
+        fetch(`/api/event?id=${id}`),
         fetch(`/api/photos?eventId=${id}`)
       ]);
+      
+      const eventData = eventRes.ok ? await eventRes.json() : null;
       const photosData = photosResponse.ok
         ? ((await photosResponse.json()) as Photo[])
         : [];
@@ -33,9 +43,22 @@ export default function EventPage() {
       setEvent(eventData);
       setPhotos(photosData);
 
+      // Fetch signed URLs for all photos via the public bucket
       const urls: Record<string, string> = {};
       for (const photo of photosData) {
-        urls[photo.id] = await getPhotoUrl(photo.storage_path_watermark);
+        if (photo.storage_path_watermark) {
+          try {
+            const signedRes = await fetch('/api/signed-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: photo.storage_path_watermark, bucket: 'photos' })
+            });
+            if (signedRes.ok) {
+              const { url } = await signedRes.json();
+              urls[photo.id] = url;
+            }
+          } catch {}
+        }
       }
       setPhotoUrls(urls);
       setIsLoading(false);

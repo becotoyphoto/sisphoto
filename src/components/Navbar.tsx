@@ -86,7 +86,33 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            {user ? (
+              <>
+                <Link href="/carrinho" className="relative p-2 hover:bg-white/5 rounded-full transition-colors">
+                  <ShoppingCart className="h-5 w-5" />
+                  {itemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {itemCount}
+                    </span>
+                  )}
+                </Link>
+                <Link href={dashboardHref} className="flex items-center gap-1 text-xs font-medium bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full transition-colors">
+                  <User className="h-3.5 w-3.5" />
+                  {profile?.full_name?.split(' ')[0] || 'Conta'}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="flex items-center gap-1 text-xs font-medium bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-full transition-colors">
+                  <User className="h-3.5 w-3.5" />
+                  Entrar
+                </Link>
+                <Link href="/cadastrar" className="flex items-center gap-1 text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-full transition-colors">
+                  Criar conta
+                </Link>
+              </>
+            )}
             <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-md hover:bg-white/5">
               <Menu className="h-6 w-6" />
             </button>
