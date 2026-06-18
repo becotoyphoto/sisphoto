@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Camera, MapPin, Calendar, Loader2, ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { Camera, MapPin, Calendar, Loader2, ArrowLeft, Save, Upload, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,9 @@ const brazilianStates = [
   'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ];
 
+const selectClassName =
+  'w-full bg-slate-950 text-white border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none';
+
 export default function EditEventPage() {
   const router = useRouter();
   const { id } = useParams();
@@ -23,6 +26,7 @@ export default function EditEventPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [uploadedPhotos, setUploadedPhotos] = useState<{ name: string; url: string }[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +61,9 @@ export default function EditEventPage() {
             cover_image_url: eventData.cover_image_url || '',
             status: eventData.status || 'draft',
           });
+
+          // Load uploaded photos for cover image picker
+          fetchPhotos();
         }
       } catch (err) {
         console.error('Error loading data:', err);
@@ -65,6 +72,27 @@ export default function EditEventPage() {
       }
     }
     
+    const fetchPhotos = async () => {
+      try {
+        const res = await fetch(`/api/photos?eventId=${id}`);
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const signed = await Promise.all(
+            data.map(async (p: { storage_path_watermark: string }) => {
+              const sres = await fetch('/api/signed-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: p.storage_path_watermark, bucket: 'photos' }),
+              });
+              const sdata = await sres.json();
+              return { name: p.storage_path_watermark.split('/').pop() || p.storage_path_watermark, url: sdata.url || '' };
+            })
+          );
+          setUploadedPhotos(signed.filter(p => p.url));
+        }
+      } catch {}
+    };
+
     loadData();
   }, [id]);
 
@@ -189,11 +217,11 @@ export default function EditEventPage() {
                 name="category_id"
                 value={formData.category_id}
                 onChange={handleChange}
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+                className={selectClassName}
               >
-                <option value="">Selecione uma categoria</option>
+                <option value="" className="bg-slate-950 text-white">Selecione uma categoria</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id} className="bg-slate-950 text-white">{cat.name}</option>
                 ))}
               </select>
             </div>
@@ -237,10 +265,10 @@ export default function EditEventPage() {
                 value={formData.state}
                 onChange={handleChange}
                 required
-                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+                className={selectClassName}
               >
                 {brazilianStates.map((state) => (
-                  <option key={state} value={state}>{state}</option>
+                  <option key={state} value={state} className="bg-slate-950 text-white">{state}</option>
                 ))}
               </select>
             </div>
@@ -248,14 +276,68 @@ export default function EditEventPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">URL da Imagem de Capa</label>
-            <input
-              type="url"
-              name="cover_image_url"
-              value={formData.cover_image_url}
-              onChange={handleChange}
-              placeholder="https://..."
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
-            />
+            <div className="flex gap-2">
+              <input
+                type="url"
+                name="cover_image_url"
+                value={formData.cover_image_url}
+                onChange={handleChange}
+                placeholder="https://..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              />
+              {uploadedPhotos.length > 0 && (
+                <div className="relative group">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 bg-slate-950 text-white border border-white/10 rounded-xl py-3 px-4 hover:border-primary transition-colors"
+                    onClick={() => {
+                      const menu = document.getElementById('photo-picker-menu');
+                      menu?.classList.toggle('hidden');
+                    }}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Fotos
+                  </button>
+                  <div
+                    id="photo-picker-menu"
+                    className="hidden absolute right-0 top-full mt-1 w-72 max-h-64 overflow-y-auto bg-slate-950 border border-white/10 rounded-xl shadow-2xl z-50"
+                  >
+                    {uploadedPhotos.map((photo, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, cover_image_url: photo.url }));
+                          const menu = document.getElementById('photo-picker-menu');
+                          menu?.classList.add('hidden');
+                        }}
+                      >
+                        <img src={photo.url} alt="" className="w-10 h-10 object-cover rounded-lg" />
+                        <span className="text-sm truncate">{photo.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {formData.cover_image_url && (
+              <div className="mt-3 relative inline-block">
+                <img
+                  src={formData.cover_image_url}
+                  alt="Preview capa"
+                  className="h-24 rounded-xl object-cover border border-white/10"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, cover_image_url: '' }))}
+                  className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 hover:bg-red-600 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div>
@@ -264,10 +346,10 @@ export default function EditEventPage() {
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              className={selectClassName}
             >
-              <option value="draft">Rascunho</option>
-              <option value="published">Publicado</option>
+              <option value="draft" className="bg-slate-950 text-white">Rascunho</option>
+              <option value="published" className="bg-slate-950 text-white">Publicado</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
               Eventos em rascunho não são visíveis ao público.
