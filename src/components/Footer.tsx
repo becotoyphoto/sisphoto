@@ -56,7 +56,7 @@ export default function Footer() {
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-1">Contato</h4>
-              <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> (00) 00000-0000</p>
+              <a href="tel:+5521997853031" className="flex items-center gap-2 hover:text-primary transition-colors"><Phone className="h-4 w-4" /> (21) 99785-3031</a>
               <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> contato@becotoy.com.br</p>
             </div>
             <div>
