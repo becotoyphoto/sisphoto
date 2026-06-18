@@ -58,6 +58,9 @@ export default function EventUploadPage() {
 
   const applyWatermarkToPhoto = async (photo: PhotoUpload): Promise<PhotoUpload> => {
     try {
+      // #region debug-point A:watermark-start
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:start',msg:'[DEBUG] watermark processing started',data:{photoId:photo.id,fileName:photo.originalFile.name,size:photo.originalFile.size,type:photo.originalFile.type},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       const watermarkBlob = await applyWatermarkToCanvas(photo.originalFile, {
         text: 'SisPhoto',
         opacity: 0.25,
@@ -65,6 +68,9 @@ export default function EventUploadPage() {
       });
       
       const watermarkFile = blobToFile(watermarkBlob, photo.originalFile.name);
+      // #region debug-point A:watermark-success
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:success',msg:'[DEBUG] watermark processing finished',data:{photoId:photo.id,fileName:photo.originalFile.name,outputSize:watermarkFile.size,outputType:watermarkFile.type},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       
       return {
         ...photo,
@@ -72,6 +78,9 @@ export default function EventUploadPage() {
         status: 'pending',
       };
     } catch (error) {
+      // #region debug-point A:watermark-error
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:error',msg:'[DEBUG] watermark processing failed',data:{photoId:photo.id,fileName:photo.originalFile.name,error:error instanceof Error ? error.message : String(error)},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       return {
         ...photo,
         status: 'error',
@@ -82,6 +91,9 @@ export default function EventUploadPage() {
 
   const handleApplyWatermarks = async () => {
     const photosToProcess = photos.filter(p => p.status === 'pending' || p.status === 'error');
+    // #region debug-point A:watermark-batch
+    fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:handleApplyWatermarks',msg:'[DEBUG] watermark batch triggered',data:{eventId:id,selectedCount:photos.length,toProcessCount:photosToProcess.length},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     
     for (const photo of photosToProcess) {
       setPhotos(prev => prev.map(p => 
@@ -100,6 +112,7 @@ export default function EventUploadPage() {
     if (!photo.watermarkFile) return false;
     
     try {
+      const traceId = `${photo.id}-${Date.now()}`;
       const formDataOriginal = new FormData();
       formDataOriginal.append('file', photo.originalFile);
       formDataOriginal.append('eventId', id as string);
@@ -109,6 +122,9 @@ export default function EventUploadPage() {
         method: 'POST',
         body: formDataOriginal,
       });
+      // #region debug-point B:upload-original-response
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',traceId,location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:original-response',msg:'[DEBUG] original upload response received',data:{ok:resOriginal.ok,status:resOriginal.status},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       
       if (!resOriginal.ok) return false;
       const { path: originalPath } = await resOriginal.json();
@@ -122,6 +138,9 @@ export default function EventUploadPage() {
         method: 'POST',
         body: formDataWatermark,
       });
+      // #region debug-point B:upload-watermark-response
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',traceId,location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:watermark-response',msg:'[DEBUG] watermark upload response received',data:{ok:resWatermark.ok,status:resWatermark.status,originalPath},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       
       if (!resWatermark.ok) return false;
       const { path: watermarkPath } = await resWatermark.json();
@@ -139,6 +158,9 @@ export default function EventUploadPage() {
       
       return photoRes.ok;
     } catch (error) {
+      // #region debug-point B:upload-error
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:error',msg:'[DEBUG] upload request failed',data:{photoId:photo.id,fileName:photo.originalFile.name,error:error instanceof Error ? error.message : String(error)},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       console.error('Upload error:', error);
       return false;
     }
@@ -179,9 +201,10 @@ export default function EventUploadPage() {
     });
   };
 
-  const pendingCount = photos.filter(p => p.status === 'pending').length;
+  const pendingWithoutWatermark = photos.filter(p => p.status === 'pending' && !p.watermarkFile).length;
   const readyCount = photos.filter(p => p.status === 'pending' && p.watermarkFile).length;
   const doneCount = photos.filter(p => p.status === 'done').length;
+  const allWatermarked = pendingWithoutWatermark === 0 && photos.some(p => p.watermarkFile);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -291,11 +314,11 @@ export default function EventUploadPage() {
           <div className="flex flex-wrap gap-4">
             <button
               onClick={handleApplyWatermarks}
-              disabled={pendingCount === 0 || isUploading}
+              disabled={pendingWithoutWatermark === 0 || isUploading}
               className="flex items-center gap-2 bg-secondary hover:bg-secondary/90 px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
             >
               <Image className="h-5 w-5" />
-              Aplicar Marca d&apos;Água ({pendingCount})
+              {allWatermarked ? '✓ Marca d\'Água Aplicada' : `Aplicar Marca d'Água (${pendingWithoutWatermark})`}
             </button>
             
             <button

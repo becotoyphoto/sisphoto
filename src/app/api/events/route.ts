@@ -65,8 +65,14 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      // #region debug-point E:events-unauthorized
+      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'E',location:'api/events/route.ts:user-check',msg:'[DEBUG] events list rejected due to missing user',data:{},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    // #region debug-point D:events-request
+    fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'D',location:'api/events/route.ts:request',msg:'[DEBUG] photographer events requested',data:{userId:user.id},ts:Date.now()})}).catch(()=>{});
+    // #endregion
 
     const { data: events, error } = await serviceSupabase
       .from('events')
@@ -113,8 +119,14 @@ export async function GET() {
       photos: [{ count: photoCountByEventId.get(event.id) || 0 }],
     }));
 
+    // #region debug-point D:events-success
+    fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'D',location:'api/events/route.ts:success',msg:'[DEBUG] photographer events query succeeded',data:{userId:user.id,eventCount:data.length,counts:data.map((event)=>({eventId:event.id,photoCount:event.photos?.[0]?.count||0}))},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     return NextResponse.json(data);
   } catch (error) {
+    // #region debug-point D:events-exception
+    fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'D',location:'api/events/route.ts:catch',msg:'[DEBUG] events route threw exception',data:{error:error instanceof Error ? error.message : String(error)},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     console.error('Error fetching events:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

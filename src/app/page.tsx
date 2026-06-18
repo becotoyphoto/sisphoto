@@ -105,7 +105,7 @@ export default function HomePage() {
     <div className="flex flex-col">
       {/* Hero Section */}
       <section className="relative py-24 bg-gradient-to-br from-primary/20 via-background to-secondary/20 overflow-hidden">
-        <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-3xl opacity-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-3xl opacity-10" />
         
         <div className="relative max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
@@ -259,7 +259,7 @@ export default function HomePage() {
             </div>
             
             <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-2xl opacity-20" />
+              <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-2xl opacity-20" />
               <img 
                 src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80" 
                 alt="Fotógrafo"
