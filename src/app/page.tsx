@@ -80,6 +80,20 @@ const categories = [
 
 const mobileCategorySlugs = ['futebol', 'corrida', 'eventos', 'futevolei'];
 const mobileCategories = categories.filter(c => mobileCategorySlugs.includes(c.slug));
+const heroBackgroundSlugs = [
+  'futebol',
+  'corrida',
+  'eventos',
+  'futevolei',
+  'ciclismo',
+  'crossfit',
+  'beach-tennis',
+  'natacao',
+  'basquete',
+  'motociclismo',
+  'formaturas',
+  'surf',
+];
 
 const cities = [
   'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Porto Alegre', 'Salvador',
@@ -104,18 +118,36 @@ export default function HomePage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative py-24 bg-gradient-to-br from-primary/20 via-background to-secondary/20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-3xl opacity-10" />
+      <section className="relative py-24 overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="grid h-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 p-2 opacity-50">
+            {heroBackgroundSlugs.map((slug, index) => (
+              <div
+                key={`${slug}-${index}`}
+                className="relative min-h-[110px] sm:min-h-[140px] lg:min-h-[170px] overflow-hidden rounded-2xl bg-black/40"
+              >
+                <img
+                  src={getImageUrl(slug)}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/35" />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-black/35" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/20 to-black/50" />
+        </div>
         
         <div className="relative max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-white">
               Encontre suas fotos<br />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
                 de qualquer evento
               </span>
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-xl text-white/85 mb-8">
               Milhares de fotos de eventos esportivos e festas em um só lugar
             </p>
             

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, Calendar, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight } from 'lucide-react';
+import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, Calendar, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatLocalDate } from '@/lib/utils';
@@ -32,6 +32,7 @@ export default function PhotographerDashboard() {
   const [salesData, setSalesData] = useState<SalesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.is_approved || profile?.role !== 'photographer') {
@@ -68,6 +69,35 @@ export default function PhotographerDashboard() {
       setError('Você precisa ser um fotógrafo aprovado para acessar esta página.');
     }
   }, [profile, isLoading]);
+
+  const handleDeleteEvent = async (eventId: string, eventName: string) => {
+    const confirmed = window.confirm(`Excluir o evento "${eventName}" e todas as fotos vinculadas?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    setActionLoading(eventId);
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || 'Nao foi possivel excluir o evento.');
+        return;
+      }
+
+      setEvents((prev) => prev.filter((event) => event.id !== eventId));
+    } catch (err) {
+      console.error('Error deleting event:', err);
+      alert('Erro ao excluir evento.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   if (error) {
     return (
@@ -258,6 +288,18 @@ export default function PhotographerDashboard() {
                             <EyeOff className="h-5 w-5 text-muted-foreground" />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleDeleteEvent(event.id, event.name)}
+                          disabled={actionLoading === event.id}
+                          className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                          title="Excluir evento"
+                        >
+                          {actionLoading === event.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 className="h-5 w-5 text-red-500" />
+                          )}
+                        </button>
                       </div>
                     </td>
                   </tr>

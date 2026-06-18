@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, Check, Loader2, ArrowLeft, Image, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -16,15 +16,74 @@ interface PhotoUpload {
   error?: string;
 }
 
+interface ExistingPhoto {
+  id: string;
+  previewUrl: string;
+  originalPath?: string;
+  watermarkPath?: string;
+}
+
 export default function EventUploadPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
   const [price, setPrice] = useState('15.00');
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(true);
+  const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+
+  const loadExistingPhotos = useCallback(async () => {
+    try {
+      setIsLoadingExisting(true);
+      const response = await fetch(`/api/photos?eventId=${id}`);
+      const data = await response.json();
+
+      if (!response.ok || !Array.isArray(data)) {
+        setExistingPhotos([]);
+        return;
+      }
+
+      const signedPhotos = await Promise.all(
+        data.map(async (photo: { id: string; storage_path_original?: string; storage_path_watermark?: string }) => {
+          let previewUrl = '';
+
+          if (photo.storage_path_watermark) {
+            const signedResponse = await fetch('/api/signed-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: photo.storage_path_watermark, bucket: 'photos' }),
+            });
+            const signedData = await signedResponse.json().catch(() => ({}));
+            previewUrl = signedData.url || '';
+          }
+
+          return {
+            id: photo.id,
+            previewUrl,
+            originalPath: photo.storage_path_original,
+            watermarkPath: photo.storage_path_watermark,
+          };
+        })
+      );
+
+      setExistingPhotos(signedPhotos.filter((photo) => photo.previewUrl));
+    } catch (error) {
+      console.error('Error loading existing photos:', error);
+      setExistingPhotos([]);
+    } finally {
+      setIsLoadingExisting(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      loadExistingPhotos();
+    }
+  }, [id, loadExistingPhotos]);
 
   const processFile = async (file: File): Promise<PhotoUpload> => {
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -58,29 +117,20 @@ export default function EventUploadPage() {
 
   const applyWatermarkToPhoto = async (photo: PhotoUpload): Promise<PhotoUpload> => {
     try {
-      // #region debug-point A:watermark-start
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:start',msg:'[DEBUG] watermark processing started',data:{photoId:photo.id,fileName:photo.originalFile.name,size:photo.originalFile.size,type:photo.originalFile.type},ts:Date.now()})}).catch(()=>{});
-      // #endregion
       const watermarkBlob = await applyWatermarkToCanvas(photo.originalFile, {
-        text: 'SisPhoto',
-        opacity: 0.25,
+        text: 'BecoToy.com',
+        opacity: 0.26,
         fontSize: 48,
       });
-      
+
       const watermarkFile = blobToFile(watermarkBlob, photo.originalFile.name);
-      // #region debug-point A:watermark-success
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:success',msg:'[DEBUG] watermark processing finished',data:{photoId:photo.id,fileName:photo.originalFile.name,outputSize:watermarkFile.size,outputType:watermarkFile.type},ts:Date.now()})}).catch(()=>{});
-      // #endregion
-      
+
       return {
         ...photo,
         watermarkFile,
         status: 'pending',
       };
     } catch (error) {
-      // #region debug-point A:watermark-error
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:applyWatermarkToPhoto:error',msg:'[DEBUG] watermark processing failed',data:{photoId:photo.id,fileName:photo.originalFile.name,error:error instanceof Error ? error.message : String(error)},ts:Date.now()})}).catch(()=>{});
-      // #endregion
       return {
         ...photo,
         status: 'error',
@@ -91,10 +141,7 @@ export default function EventUploadPage() {
 
   const handleApplyWatermarks = async () => {
     const photosToProcess = photos.filter(p => p.status === 'pending' || p.status === 'error');
-    // #region debug-point A:watermark-batch
-    fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'A',location:'dashboard/fotografo/eventos/[id]/page.tsx:handleApplyWatermarks',msg:'[DEBUG] watermark batch triggered',data:{eventId:id,selectedCount:photos.length,toProcessCount:photosToProcess.length},ts:Date.now()})}).catch(()=>{});
-    // #endregion
-    
+
     for (const photo of photosToProcess) {
       setPhotos(prev => prev.map(p => 
         p.id === photo.id ? { ...p, status: 'processing' } : p
@@ -108,41 +155,40 @@ export default function EventUploadPage() {
     }
   };
 
-  const uploadPhoto = async (photo: PhotoUpload): Promise<boolean> => {
-    if (!photo.watermarkFile) return false;
-    
+  const uploadPhoto = async (photo: PhotoUpload): Promise<{ success: boolean; error?: string }> => {
+    if (!photo.watermarkFile) return { success: false, error: 'Marca d\'água não aplicada' };
+
     try {
-      const traceId = `${photo.id}-${Date.now()}`;
       const formDataOriginal = new FormData();
       formDataOriginal.append('file', photo.originalFile);
       formDataOriginal.append('eventId', id as string);
       formDataOriginal.append('type', 'original');
-      
+
       const resOriginal = await fetch('/api/upload', {
         method: 'POST',
         body: formDataOriginal,
       });
-      // #region debug-point B:upload-original-response
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',traceId,location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:original-response',msg:'[DEBUG] original upload response received',data:{ok:resOriginal.ok,status:resOriginal.status},ts:Date.now()})}).catch(()=>{});
-      // #endregion
-      
-      if (!resOriginal.ok) return false;
+
+      if (!resOriginal.ok) {
+        const err = await resOriginal.json().catch(() => ({}));
+        return { success: false, error: err.error || `Falha no upload original (${resOriginal.status})` };
+      }
       const { path: originalPath } = await resOriginal.json();
 
       const formDataWatermark = new FormData();
       formDataWatermark.append('file', photo.watermarkFile);
       formDataWatermark.append('eventId', id as string);
       formDataWatermark.append('type', 'watermark');
-      
+
       const resWatermark = await fetch('/api/upload', {
         method: 'POST',
         body: formDataWatermark,
       });
-      // #region debug-point B:upload-watermark-response
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',traceId,location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:watermark-response',msg:'[DEBUG] watermark upload response received',data:{ok:resWatermark.ok,status:resWatermark.status,originalPath},ts:Date.now()})}).catch(()=>{});
-      // #endregion
-      
-      if (!resWatermark.ok) return false;
+
+      if (!resWatermark.ok) {
+        const err = await resWatermark.json().catch(() => ({}));
+        return { success: false, error: err.error || `Falha no upload com marca d'água (${resWatermark.status})` };
+      }
       const { path: watermarkPath } = await resWatermark.json();
 
       const photoRes = await fetch('/api/photos', {
@@ -155,14 +201,21 @@ export default function EventUploadPage() {
           price: parseFloat(price),
         }),
       });
-      
-      return photoRes.ok;
+
+      if (!photoRes.ok) {
+        const err = await photoRes.json().catch(() => ({}));
+        return { success: false, error: err.error || `Falha ao registrar foto (${photoRes.status})` };
+      }
+
+      await loadExistingPhotos();
+
+      return { success: true };
     } catch (error) {
-      // #region debug-point B:upload-error
-      fetch('http://127.0.0.1:7777/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'photo-upload-missing',runId:'pre-fix',hypothesisId:'B',location:'dashboard/fotografo/eventos/[id]/page.tsx:uploadPhoto:error',msg:'[DEBUG] upload request failed',data:{photoId:photo.id,fileName:photo.originalFile.name,error:error instanceof Error ? error.message : String(error)},ts:Date.now()})}).catch(()=>{});
-      // #endregion
       console.error('Upload error:', error);
-      return false;
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido no upload',
+      };
     }
   };
 
@@ -181,10 +234,10 @@ export default function EventUploadPage() {
         p.id === photo.id ? { ...p, status: 'uploading' } : p
       ));
       
-      const success = await uploadPhoto(photo);
-      
-      setPhotos(prev => prev.map(p => 
-        p.id === photo.id ? { ...p, status: success ? 'done' : 'error', error: success ? undefined : 'Erro no upload' } : p
+      const result = await uploadPhoto(photo);
+
+      setPhotos(prev => prev.map(p =>
+        p.id === photo.id ? { ...p, status: result.success ? 'done' : 'error', error: result.error } : p
       ));
     }
     
@@ -199,6 +252,34 @@ export default function EventUploadPage() {
       }
       return prev.filter(p => p.id !== photoId);
     });
+  };
+
+  const handleDeleteExistingPhoto = async (photoId: string) => {
+    const confirmed = window.confirm('Excluir esta foto do evento?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingPhotoId(photoId);
+    try {
+      const response = await fetch(`/api/photos?id=${photoId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || 'Nao foi possivel excluir a foto.');
+        return;
+      }
+
+      setExistingPhotos((prev) => prev.filter((photo) => photo.id !== photoId));
+    } catch (error) {
+      console.error('Error deleting photo:', error);
+      alert('Erro ao excluir foto.');
+    } finally {
+      setDeletingPhotoId(null);
+    }
   };
 
   const pendingWithoutWatermark = photos.filter(p => p.status === 'pending' && !p.watermarkFile).length;
@@ -309,6 +390,43 @@ export default function EventUploadPage() {
           </div>
         )}
 
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold">Fotos ja enviadas ({existingPhotos.length})</h3>
+            {isLoadingExisting && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+          </div>
+
+          {existingPhotos.length === 0 ? (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-sm text-muted-foreground">
+              Nenhuma foto enviada ainda para este evento.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {existingPhotos.map((photo) => (
+                <div key={photo.id} className="relative aspect-square bg-white/5 rounded-xl overflow-hidden border border-white/10">
+                  <img
+                    src={photo.previewUrl}
+                    alt="Foto enviada"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    onClick={() => handleDeleteExistingPhoto(photo.id)}
+                    disabled={deletingPhotoId === photo.id}
+                    className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-500 rounded-full transition-colors disabled:opacity-50"
+                    title="Excluir foto"
+                  >
+                    {deletingPhotoId === photo.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Actions */}
         {photos.length > 0 && (
           <div className="flex flex-wrap gap-4">
@@ -353,6 +471,12 @@ export default function EventUploadPage() {
             >
               Ver evento publicado
             </Link>
+          </div>
+        )}
+
+        {profile?.role === 'admin' && (
+          <div className="mt-6 text-sm text-muted-foreground">
+            Como administrador, voce pode gerenciar e excluir fotos deste evento por aqui.
           </div>
         )}
       </div>
