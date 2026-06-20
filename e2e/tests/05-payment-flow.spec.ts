@@ -5,44 +5,57 @@ import { supabaseAdmin } from "../support/supabaseAdmin";
 
 test.use({ storageState: path.resolve(__dirname, "..", ".auth", "client.json") });
 
-// Reaproveita o fluxo já validado em 02-client-purchase-flow.spec.ts para colocar
-// uma foto no carrinho antes de cada teste de pagamento.
-async function addFirstPhotoToCart(page: Page) {
+// Adiciona a primeira foto ao carrinho e retorna o cartId
+// para uso nos testes de pagamento/simulação.
+async function addFirstPhotoToCart(page: Page): Promise<{ cartId: string }> {
   const { eventId } = getTestEventWithPhotos();
   await page.goto(`/evento/${eventId}`);
 
-  // Espera as fotos carregarem
   const photos = page.getByAltText("Foto do evento");
   await expect(photos.first()).toBeVisible();
 
-  // Usa o mesmo fluxo validado no spec 02: hover no card de foto e clicar
-  // no botão "Adicionar ao carrinho" do grid (que tem stopPropagation).
   const photoImg = photos.first();
   const photoCard = photoImg.locator("xpath=..");
-  const gridAddButton = photoCard.locator('button[title="Adicionar ao carrinho"]');
 
   // Captura a chamada de API do carrinho
   const addToCartResponse = page.waitForResponse(
     (res) => res.url().includes("/rest/v1/cart_items") && res.request().method() === "POST"
   );
 
+  const gridAddButton = photoCard.locator('button[title="Adicionar ao carrinho"]');
   await photoCard.hover();
   await expect(gridAddButton).toBeVisible();
   await gridAddButton.click();
 
-  await addToCartResponse;
-  // O PostgREST retorna 201 com corpo vazio quando não há 'Prefer: return=representation'.
-  // O registro existe no banco — não precisamos do body para os testes de pagamento.
+  const response = await addToCartResponse;
+  // Extrai o cart_id do corpo da requisição
+  const reqBody = response.request().postDataJSON();
+  const cartId = reqBody?.cart_id as string | undefined;
 
-  return { added: true };
+  if (!cartId) {
+    // Fallback: busca o cart ativo do cliente logado
+    const { data: { user } } = await supabaseAdmin.auth.admin.listUsers();
+    const client = user.find(u => u.email === process.env.TEST_CLIENT_EMAIL);
+    if (client) {
+      const { data: cart } = await supabaseAdmin
+        .from('carts')
+        .select('id')
+        .eq('user_id', client.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (cart) return { cartId: cart.id };
+    }
+    throw new Error("Não foi possível obter o cartId após adicionar ao carrinho.");
+  }
+
+  return { cartId };
 }
 
 test.describe("Pagamento via Pix", () => {
   test("gera QR code Pix e libera a foto após o pagamento ser confirmado", async ({ page, request }) => {
-    await addFirstPhotoToCart(page);
+    const { cartId } = await addFirstPhotoToCart(page);
     await page.goto("/carrinho");
 
-    // AJUSTE: texto real do botão que inicia o pagamento.
     const pixResponse = page.waitForResponse(
       (res) => res.url().includes("/api/pagamentos/pix") && res.request().method() === "POST"
     );
@@ -50,26 +63,22 @@ test.describe("Pagamento via Pix", () => {
     const response = await pixResponse;
     expect(response.status(), "criação do pagamento Pix deve retornar 200").toBe(200);
 
-    // AJUSTE: confirme os nomes de campo reais devolvidos pela sua rota.
     const pixData = await response.json();
     expect(pixData, "resposta deve conter o id do pagamento").toHaveProperty("payment_id");
     expect(pixData, "resposta deve conter o código copia-e-cola").toHaveProperty("qr_code");
 
     // O QR code precisa aparecer pro cliente escanear.
-    // AJUSTE: seletor real do componente de QR code / texto copia-e-cola.
     await expect(page.getByTestId("pix-qr-code")).toBeVisible();
     await expect(page.getByText(/copia e cola/i)).toBeVisible();
 
-    // Em vez de esperar o sandbox do Mercado Pago confirmar via webhook real
-    // (lento e fora do nosso controle), simulamos a notificação diretamente
-    // contra a mesma lógica que o webhook real aciona.
+    // Simula a notificação de pagamento aprovado (cartId é necessário
+    // para o processarConfirmacaoPagamento saber o que faturar)
     const simulateResponse = await request.post("/api/test/simular-webhook-pagamento", {
-      data: { paymentId: pixData.payment_id, status: "approved" },
+      data: { paymentId: pixData.payment_id, status: "approved", cartId },
     });
     expect(simulateResponse.ok(), "simulação de webhook deve ser aceita (200)").toBeTruthy();
 
-    // Confirma a fonte da verdade: o pedido foi marcado como pago no banco,
-    // não só que a chamada retornou 200.
+    // Confirma a fonte da verdade: o pedido foi marcado como pago no banco
     const { data: pedido, error } = await supabaseAdmin
       .from("orders")
       .select("status")
@@ -79,18 +88,18 @@ test.describe("Pagamento via Pix", () => {
     expect(pedido?.status).toBe("paid");
 
     // Só então confirma na UI que o download em alta resolução foi liberado.
+    // Escopamos ao card de resumo do carrinho para não conflitar com
+    // o link global "Baixar fotos" do footer.
+    const resumoCard = page.getByRole("heading", { name: "Resumo" }).locator("..");
     await page.reload();
-    // AJUSTE: seletor/texto real do link/botão de download pós-pagamento.
-    await expect(page.getByRole("link", { name: /baixar foto/i })).toBeVisible({ timeout: 10000 });
+    await expect(resumoCard.getByRole("link", { name: /baixar foto/i })).toBeVisible({ timeout: 10000 });
   });
 
   test("não duplica a liberação ao receber a mesma notificação de pagamento duas vezes", async ({
     page,
     request,
   }) => {
-    // O Mercado Pago reenvia notificações de verdade (não é cenário hipotético),
-    // então o backend precisa lidar com isso sem liberar/cobrar duas vezes.
-    await addFirstPhotoToCart(page);
+    const { cartId } = await addFirstPhotoToCart(page);
     await page.goto("/carrinho");
 
     const pixResponse = page.waitForResponse(
@@ -100,13 +109,20 @@ test.describe("Pagamento via Pix", () => {
     const response = await pixResponse;
     const pixData = await response.json();
 
-    await request.post("/api/test/simular-webhook-pagamento", {
-      data: { paymentId: pixData.payment_id, status: "approved" },
+    // Primeira notificação
+    const first = await request.post("/api/test/simular-webhook-pagamento", {
+      data: { paymentId: pixData.payment_id, status: "approved", cartId },
     });
+    expect(first.ok(), "primeira notificação deve ser aceita").toBeTruthy();
+
+    // Segunda notificação (mesmo paymentId – deve ser idempotente)
     const second = await request.post("/api/test/simular-webhook-pagamento", {
-      data: { paymentId: pixData.payment_id, status: "approved" },
+      data: { paymentId: pixData.payment_id, status: "approved", cartId },
     });
+    // A rota de teste retorna { alreadyProcessed: true } com status 200
     expect(second.ok(), "segunda notificação não deve causar erro").toBeTruthy();
+    const secondBody = await second.json();
+    expect(secondBody.alreadyProcessed, "deve indicar que já foi processado").toBe(true);
 
     const { data: pedidos, error } = await supabaseAdmin
       .from("orders")
@@ -117,7 +133,7 @@ test.describe("Pagamento via Pix", () => {
   });
 
   test("não libera a foto se o pagamento for rejeitado", async ({ page, request }) => {
-    await addFirstPhotoToCart(page);
+    const { cartId } = await addFirstPhotoToCart(page);
     await page.goto("/carrinho");
 
     const pixResponse = page.waitForResponse(
@@ -127,13 +143,15 @@ test.describe("Pagamento via Pix", () => {
     const response = await pixResponse;
     const pixData = await response.json();
 
+    // Simula pagamento rejeitado
     await request.post("/api/test/simular-webhook-pagamento", {
-      data: { paymentId: pixData.payment_id, status: "rejected" },
+      data: { paymentId: pixData.payment_id, status: "rejected", cartId },
     });
 
+    // Escopa ao card de resumo para não conflitar com link global do footer
+    const resumoCard = page.getByRole("heading", { name: "Resumo" }).locator("..");
     await page.reload();
-    await expect(page.getByRole("link", { name: /baixar foto/i })).not.toBeVisible();
-    // AJUSTE: texto real exibido para pagamento recusado/não aprovado.
+    await expect(resumoCard.getByRole("link", { name: /baixar foto/i })).not.toBeVisible();
     await expect(page.getByText(/pagamento (recusado|não aprovado)/i)).toBeVisible();
   });
 });
