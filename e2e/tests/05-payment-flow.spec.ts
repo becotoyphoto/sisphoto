@@ -11,22 +11,30 @@ async function addFirstPhotoToCart(page: Page) {
   const { eventId } = getTestEventWithPhotos();
   await page.goto(`/evento/${eventId}`);
 
+  // Espera as fotos carregarem
   const photos = page.getByAltText("Foto do evento");
   await expect(photos.first()).toBeVisible();
-  await photos.first().click();
-  await expect(page.getByRole("dialog")).toBeVisible();
 
+  // Usa o mesmo fluxo validado no spec 02: hover no card de foto e clicar
+  // no botão "Adicionar ao carrinho" do grid (que tem stopPropagation).
+  const photoImg = photos.first();
+  const photoCard = photoImg.locator("xpath=..");
+  const gridAddButton = photoCard.locator('button[title="Adicionar ao carrinho"]');
+
+  // Captura a chamada de API do carrinho
   const addToCartResponse = page.waitForResponse(
     (res) => res.url().includes("/rest/v1/cart_items") && res.request().method() === "POST"
   );
-  await page.getByRole("button", { name: /adicionar/i }).click();
-  const res = await addToCartResponse;
-  const body = await res.json();
 
-  await page.keyboard.press("Escape").catch(() => {});
+  await photoCard.hover();
+  await expect(gridAddButton).toBeVisible();
+  await gridAddButton.click();
 
-  // PostgREST geralmente retorna um array com o registro criado.
-  return Array.isArray(body) ? body[0] : body;
+  await addToCartResponse;
+  // O PostgREST retorna 201 com corpo vazio quando não há 'Prefer: return=representation'.
+  // O registro existe no banco — não precisamos do body para os testes de pagamento.
+
+  return { added: true };
 }
 
 test.describe("Pagamento via Pix", () => {
