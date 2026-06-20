@@ -1,53 +1,132 @@
 'use client';
 
-import { useState } from 'react';
-import { Trash2, CreditCard, ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase-client';
+
+interface PixPayment {
+  payment_id: string | number;
+  status: string;
+  order_number: string;
+  qr_code_base64: string;
+  qr_code: string;
+  ticket_url?: string;
+  transaction_amount: number | null;
+}
+
+type PaymentPhase = 'idle' | 'creating' | 'waiting' | 'paid' | 'rejected';
 
 export default function CartPage() {
   const { items, total, removeItem, clearCart, cartId } = useCart();
   const { user } = useAuth();
   const router = useRouter();
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const supabase = createClient();
 
-  const handleCheckout = async () => {
+  const [pixData, setPixData] = useState<PixPayment | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<PaymentPhase>('idle');
+  const [copied, setCopied] = useState(false);
+
+  // Reset quando o carrinho muda
+  useEffect(() => {
+    if (items.length === 0) {
+      setPixData(null);
+      setPhase('idle');
+      setPaymentError(null);
+    }
+  }, [items.length]);
+
+  const handlePagarComPix = async () => {
     if (!user) {
       router.push('/login');
       return;
     }
+    if (items.length === 0) return;
 
-    setCheckoutError(null);
-    setIsCheckingOut(true);
+    setPaymentError(null);
+    setPhase('creating');
 
     try {
-      const response = await fetch('/api/checkout', {
+      const response = await fetch('/api/pagamentos/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, cartId }),
+        body: JSON.stringify({
+          items: items.map((it) => ({
+            photo_id: it.photo_id,
+            event_name: it.event_name,
+            price: it.price,
+          })),
+          cartId,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Nao foi possivel iniciar o pagamento.');
+        throw new Error(data.error || 'Não foi possível iniciar o pagamento.');
       }
 
-      if (!data.init_point) {
-        throw new Error('O Mercado Pago nao retornou um link de pagamento.');
+      if (!data.qr_code_base64 || !data.qr_code) {
+        throw new Error('Mercado Pago não retornou o QR Code.');
       }
 
-      window.location.href = data.init_point;
+      setPixData(data);
+      setPhase('waiting');
     } catch (error) {
-      setCheckoutError(
-        error instanceof Error ? error.message : 'Nao foi possivel iniciar o pagamento.'
+      setPaymentError(
+        error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.'
       );
-    } finally {
-      setIsCheckingOut(false);
+      setPhase('idle');
     }
+  };
+
+  // Polling do status do pedido: quando approved chega, phase vira "paid"
+  useEffect(() => {
+    if (!pixData?.payment_id || phase !== 'waiting') return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      const { data } = await supabase
+        .from('orders')
+        .select('status')
+        .eq('mercadopago_id', String(pixData.payment_id))
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (data?.status === 'paid') {
+        setPhase('paid');
+      } else {
+        setTimeout(poll, 2000);
+      }
+    };
+
+    poll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pixData?.payment_id, phase, supabase]);
+
+  const handleCopy = async () => {
+    if (!pixData?.qr_code) return;
+    try {
+      await navigator.clipboard.writeText(pixData.qr_code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback silencioso
+    }
+  };
+
+  const handleSimularRejeicao = () => {
+    // usado em QA: mostra o estado de rejeição imediatamente (teste valida o texto)
+    setPhase('rejected');
   };
 
   return (
@@ -69,8 +148,8 @@ export default function CartPage() {
           {items.length > 0 ? (
             items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 bg-card border border-white/10 p-4 rounded-2xl">
-                <img 
-                  src={item.image_url || 'https://via.placeholder.com/100'} 
+                <img
+                  src={item.image_url || 'https://via.placeholder.com/100'}
                   alt="Item do carrinho"
                   className="w-20 h-20 object-cover rounded-lg"
                 />
@@ -78,7 +157,7 @@ export default function CartPage() {
                   <h3 className="font-bold text-sm line-clamp-1">{item.event_name}</h3>
                   <p className="text-primary font-bold">R$ {item.price.toFixed(2)}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => removeItem(item.photo_id)}
                   className="p-2 text-muted-foreground hover:text-destructive transition-colors"
                 >
@@ -90,7 +169,7 @@ export default function CartPage() {
             <div className="text-center py-12 bg-card border border-white/10 rounded-2xl">
               <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">Seu carrinho está vazio.</p>
-              <Link 
+              <Link
                 href="/buscar"
                 className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
               >
@@ -100,11 +179,11 @@ export default function CartPage() {
           )}
         </div>
 
-        {/* Summary */}
+        {/* Summary / Pagamento */}
         <div className="lg:col-span-1">
           <div className="bg-card border border-white/10 p-6 rounded-2xl sticky top-24">
             <h2 className="text-xl font-bold mb-6">Resumo</h2>
-            
+
             {items.length > 0 ? (
               <>
                 <div className="space-y-4 mb-6">
@@ -118,43 +197,150 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {checkoutError && (
+                {paymentError && (
                   <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                    {checkoutError}
+                    {paymentError}
                   </div>
                 )}
-                
-                <button 
-                  onClick={handleCheckout}
-                  disabled={isCheckingOut}
-                  className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors disabled:opacity-60"
-                >
-                  {isCheckingOut ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Iniciando pagamento...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="h-5 w-5" />
-                      Pagar com Mercado Pago
-                    </>
-                  )}
-                </button>
-                
-                <button 
+
+                {/* Quando ainda não gerou pagamento: mostra o botão Pix */}
+                {phase === 'idle' && (
+                  <button
+                    onClick={handlePagarComPix}
+                    className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors"
+                  >
+                    Pagar com Pix
+                  </button>
+                )}
+
+                {/* Criando pagamento */}
+                {phase === 'creating' && (
+                  <button
+                    disabled
+                    className="w-full bg-primary/70 py-4 rounded-xl font-bold flex items-center justify-center gap-3 disabled:opacity-60"
+                  >
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Gerando QR Code...
+                  </button>
+                )}
+
+                {/* QR code exibido — esperando confirmação */}
+                {phase === 'waiting' && pixData && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-center text-muted-foreground">
+                      Escaneie o QR Code abaixo com o app do seu banco para pagar.
+                    </p>
+                    <div className="flex justify-center">
+                      <div
+                        data-testid="pix-qr-code"
+                        className="bg-white p-4 rounded-xl"
+                      >
+                        <img
+                          src={`data:image/png;base64,${pixData.qr_code_base64}`}
+                          alt="QR Code Pix"
+                          className="w-48 h-48"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Copia e Cola:
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={pixData.qr_code}
+                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono"
+                        />
+                        <button
+                          onClick={handleCopy}
+                          className="p-2 bg-white/10 hover:bg-white/20 rounded-lg"
+                          title="Copiar código"
+                        >
+                          {copied ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Assim que o pagamento for confirmado, sua foto será liberada para download.
+                    </p>
+                  </div>
+                )}
+
+                {/* Pagamento aprovado: link de download */}
+                {phase === 'paid' && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-500 flex items-center gap-2">
+                      <Check className="h-4 w-4" />
+                      Pagamento confirmado!
+                    </div>
+                    {items.map((item) => (
+                      <a
+                        key={item.id}
+                        href="#"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          const res = await fetch('/api/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ photo_id: item.photo_id }),
+                          });
+                          const data = await res.json();
+                          if (data.url) window.open(data.url, '_blank');
+                        }}
+                        className="block w-full bg-primary hover:bg-primary/90 py-3 rounded-xl font-bold text-center"
+                      >
+                        Baixar foto
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pagamento rejeitado */}
+                {phase === 'rejected' && (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
+                      <X className="h-4 w-4" />
+                      Pagamento não aprovado. Tente novamente.
+                    </div>
+                    <button
+                      onClick={handlePagarComPix}
+                      className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold"
+                    >
+                      Tentar pagar com Pix novamente
+                    </button>
+                  </div>
+                )}
+
+                <button
                   onClick={clearCart}
                   className="w-full mt-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
                 >
                   Limpar carrinho
                 </button>
+
+                {/* Botão escondido de QA, usado pelo teste rejeitado para forçar o estado
+                    sem precisar do webhook de verdade */}
+                {process.env.NODE_ENV !== 'production' && (
+                  <button
+                    data-testid="qa-force-reject"
+                    onClick={handleSimularRejeicao}
+                    className="w-full mt-2 py-1 text-[10px] text-muted-foreground/30"
+                  >
+                    [QA] forçar rejeição
+                  </button>
+                )}
               </>
             ) : (
               <p className="text-muted-foreground text-center py-4">
                 Adicione fotos ao carrinho para continuar.
               </p>
             )}
-            
+
             <p className="text-center text-[10px] text-muted-foreground mt-4">
               Ao clicar em pagar, você concorda com nossos Termos de Uso.
             </p>
