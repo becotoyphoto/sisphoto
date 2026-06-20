@@ -47,10 +47,11 @@ function resolveSiteUrl(request: Request): string | null {
 export async function POST(request: Request) {
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    const isQa = !accessToken &&
-      (process.env.SUPABASE_QA_REF
-        ? (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').includes(process.env.SUPABASE_QA_REF)
-        : process.env.NODE_ENV !== 'production');
+
+    // Detecta ambiente QA pelo ref do Supabase (sfyvyvhuzivpxcyfbbld)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    const supabaseQaRef = process.env.SUPABASE_QA_REF ?? 'sfyvyvhuzivpxcyfbbld';
+    const isQa = supabaseUrl.includes(supabaseQaRef);
 
     if (!accessToken && !isQa) {
       return NextResponse.json(
