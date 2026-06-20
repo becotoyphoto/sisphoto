@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Camera, MapPin, Calendar, Loader2, ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Camera, Loader2, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -22,41 +22,47 @@ const brazilianStates = [
   'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
 ];
 
+const STATUS_CONFIG: Record<string, { label: string }> = {
+  draft: { label: 'Rascunho' },
+  published: { label: 'Publicado' },
+  archived: { label: 'Arquivado' },
+};
+
 const selectClassName =
   'w-full bg-slate-950 text-white border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none';
 
-export default function EditEventPage() {
+export default function AdminEditEventPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
+  const photoPickerRef = useRef<HTMLDivElement>(null);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [uploadedPhotos, setUploadedPhotos] = useState<UploadedPhoto[]>([]);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
-  const photoPickerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     category_id: '',
     city: '',
-    state: 'SP',
+    state: 'RJ',
     date: '',
     cover_image_url: '',
     status: 'draft',
   });
 
   useEffect(() => {
-    async function loadData() {
+    async function load() {
       if (!id) return;
       try {
         const [catRes, evtRes] = await Promise.all([
           fetch('/api/categories'),
           fetch(`/api/events/${id}`),
         ]);
-
         const cats = await catRes.json();
         if (Array.isArray(cats)) setCategories(cats);
 
@@ -67,7 +73,7 @@ export default function EditEventPage() {
             description: evt.description || '',
             category_id: evt.category?.id || '',
             city: evt.city || '',
-            state: evt.state || 'SP',
+            state: evt.state || 'RJ',
             date: evt.date || '',
             cover_image_url: evt.cover_image_url || '',
             status: evt.status || 'draft',
@@ -105,14 +111,13 @@ export default function EditEventPage() {
             }
           }
         }
-      } catch (err) {
-        console.error('Error loading data:', err);
-        setError('Erro ao carregar dados do evento.');
+      } catch {
+        setError('Erro ao carregar dados.');
       } finally {
         setIsLoading(false);
       }
     }
-    loadData();
+    load();
   }, [id]);
 
   // Close photo picker on outside click
@@ -127,16 +132,18 @@ export default function EditEventPage() {
   }, [showPhotoPicker]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
+  const handleSubmit = async () => {
     setError(null);
-    setSuccess(null);
 
+    if (!formData.name || !formData.city || !formData.state || !formData.date) {
+      setError('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const response = await fetch(`/api/events/${id}`, {
         method: 'PUT',
@@ -147,13 +154,13 @@ export default function EditEventPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao atualizar evento');
+        setError(data.error || 'Erro ao salvar.');
+        return;
       }
 
-      setSuccess('Evento atualizado com sucesso!');
-      setTimeout(() => router.push('/dashboard/fotografo'), 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao atualizar evento');
+      router.push(`/dashboard/admin/eventos/${id}`);
+    } catch {
+      setError('Erro de conexão.');
     } finally {
       setIsSaving(false);
     }
@@ -170,119 +177,69 @@ export default function EditEventPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <Link
-        href="/dashboard/fotografo"
+        href={`/dashboard/admin/eventos/${id}`}
         className="inline-flex items-center gap-2 text-primary hover:underline mb-6"
       >
         <ArrowLeft className="h-4 w-4" />
-        Voltar para dashboard
+        Voltar para detalhes
       </Link>
 
       <div className="bg-card border border-white/10 rounded-2xl p-8">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-primary/10 rounded-xl">
-            <Camera className="h-8 w-8 text-primary" />
+            <Camera className="h-6 w-6 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-bold">Editar Evento</h1>
-            <p className="text-muted-foreground">Altere os dados do evento</p>
+            <p className="text-muted-foreground text-sm">Evento ID: {id}</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm">
             {error}
           </div>
         )}
 
-        {success && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-500">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium mb-2">Nome do Evento *</label>
             <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
+              type="text" name="name" value={formData.name} onChange={handleChange} required
               className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Descrição</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none resize-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Categoria</label>
-              <select
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleChange}
-                className={selectClassName}
-              >
-                <option value="" className="bg-slate-950 text-white">Selecione uma categoria</option>
+              <select name="category_id" value={formData.category_id} onChange={handleChange} className={selectClassName}>
+                <option value="" className="bg-slate-950 text-white">Selecione</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id} className="bg-slate-950 text-white">{cat.name}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-sm font-medium mb-2">Data do Evento *</label>
-              <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
+              <label className="block text-sm font-medium mb-2">Data *</label>
+              <input type="date" name="date" value={formData.date} onChange={handleChange} required
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
               <label className="block text-sm font-medium mb-2">Cidade *</label>
-              <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 focus:ring-2 focus:ring-primary focus:outline-none"
-                />
-              </div>
+              <input type="text" name="city" value={formData.city} onChange={handleChange} required
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              />
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Estado *</label>
-              <select
-                name="state"
-                value={formData.state}
-                onChange={handleChange}
-                required
-                className={selectClassName}
-              >
-                {brazilianStates.map((state) => (
-                  <option key={state} value={state} className="bg-slate-950 text-white">{state}</option>
+              <select name="state" value={formData.state} onChange={handleChange} required className={selectClassName}>
+                {brazilianStates.map((s) => (
+                  <option key={s} value={s} className="bg-slate-950 text-white">{s}</option>
                 ))}
               </select>
             </div>
@@ -360,47 +317,34 @@ export default function EditEventPage() {
 
           <div>
             <label className="block text-sm font-medium mb-2">Status</label>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className={selectClassName}
-            >
-              <option value="draft" className="bg-slate-950 text-white">Rascunho</option>
-              <option value="published" className="bg-slate-950 text-white">Publicado</option>
+            <select name="status" value={formData.status} onChange={handleChange} className={selectClassName}>
+              {Object.entries(STATUS_CONFIG).map(([value, cfg]) => (
+                <option key={value} value={value} className="bg-slate-950 text-white">{cfg.label}</option>
+              ))}
             </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Eventos em rascunho não são visíveis ao público.
-            </p>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex-1 py-3 rounded-xl border border-white/10 hover:bg-white/5 font-medium transition-colors"
+          <div>
+            <label className="block text-sm font-medium mb-2">Descrição</label>
+            <textarea name="description" value={formData.description} onChange={handleChange} rows={4}
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Link href={`/dashboard/admin/eventos/${id}`}
+              className="flex-1 flex items-center justify-center gap-2 bg-white/5 border border-white/10 hover:bg-white/10 px-6 py-3 rounded-xl font-bold transition-colors text-center"
             >
               Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex-1 py-3 rounded-xl bg-primary hover:bg-primary/90 font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            </Link>
+            <button onClick={handleSubmit} disabled={isSaving}
+              className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-xl font-bold transition-colors disabled:opacity-50"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-5 w-5" />
-                  Salvar Alterações
-                </>
-              )}
+              {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+              Salvar Alterações
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

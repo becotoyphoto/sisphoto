@@ -13,13 +13,135 @@ async function getActorRole(userId: string) {
   return { service, role: profile?.role as 'admin' | 'photographer' | 'client' | undefined };
 }
 
+const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  draft: ['published'],
+  published: ['draft', 'archived'],
+  archived: ['draft'],
+};
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const supabase = await createClient();
+    const { id } = await params;
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { service, role } = await getActorRole(user.id);
+
+    if (role !== 'admin') {
+      return NextResponse.json({ error: 'Only admin can change event status' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { status: newStatus } = body;
+
+    if (!newStatus || !['draft', 'published', 'archived'].includes(newStatus)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const { data: event } = await service
+      .from('events')
+      .select('id, status')
+      .eq('id', id)
+      .single();
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    const allowedTransitions = VALID_STATUS_TRANSITIONS[event.status] || [];
+    if (!allowedTransitions.includes(newStatus)) {
+      return NextResponse.json(
+        { error: `Cannot change status from ${event.status} to ${newStatus}` },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await service
+      .from('events')
+      .update({ status: newStatus })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error patching event:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const supabase = await createClient();
+    const { id } = await params;
+
+    const { service, role } = await getActorRole((await supabase.auth.getUser()).data.user?.id || '');
+
+    const { data: event, error } = await service
+      .from('events')
+      .select(`
+        *,
+        category:categories(id, name, slug),
+        photographer:profiles(id, full_name, pix_key)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    const { count: photosCount } = await service
+      .from('photos')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_id', id);
+
+    const { data: photos } = await service
+      .from('photos')
+      .select('id, storage_path_watermark, price')
+      .eq('event_id', id)
+      .limit(12);
+
+    const photosWithSignedUrls = await Promise.all(
+      (photos || []).map(async (photo) => {
+        let url = '';
+        if (photo.storage_path_watermark) {
+          const { data: signed } = await service.storage
+            .from('photos')
+            .createSignedUrl(photo.storage_path_watermark, 3600);
+          url = signed?.signedUrl || '';
+        }
+        return { id: photo.id, url, price: photo.price };
+      })
+    );
+
+    return NextResponse.json({
+      ...event,
+      photosCount: photosCount || 0,
+      photos: photosWithSignedUrls,
+    });
+  } catch (error) {
+    console.error('Error fetching event:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient();
     const { id } = await params;
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -63,33 +185,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error updating event:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const supabase = await createClient();
-    const { id } = await params;
-    
-    const { data, error } = await supabase
-      .from('events')
-      .select(`
-        *,
-        category:categories(*),
-        photographer:profiles(full_name)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching event:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error fetching event:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

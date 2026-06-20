@@ -35,6 +35,9 @@ export default function EventUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
+  const [ignoredFiles, setIgnoredFiles] = useState<string[]>([]);
+  const [eventOwnerId, setEventOwnerId] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const loadExistingPhotos = useCallback(async () => {
     try {
@@ -85,6 +88,20 @@ export default function EventUploadPage() {
     }
   }, [id, loadExistingPhotos]);
 
+  // Verifica se o evento pertence ao fotógrafo logado
+  useEffect(() => {
+    if (!id || !user) return;
+    fetch(`/api/event?id=${id}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(evt => {
+        if (evt && evt.photographer_id !== user.id && profile?.role !== 'admin') {
+          setAccessDenied(true);
+        }
+        if (evt) setEventOwnerId(evt.photographer_id);
+      })
+      .catch(() => {});
+  }, [id, user, profile]);
+
   const processFile = async (file: File): Promise<PhotoUpload> => {
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const preview = URL.createObjectURL(file);
@@ -101,14 +118,24 @@ export default function EventUploadPage() {
     const files = Array.from(e.target.files || []);
     
     const newPhotos: PhotoUpload[] = [];
+    const invalidFileNames: string[] = [];
+    
     for (const file of files) {
       if (file.type.startsWith('image/')) {
         const photo = await processFile(file);
         newPhotos.push(photo);
+      } else {
+        invalidFileNames.push(file.name);
       }
     }
     
     setPhotos(prev => [...prev, ...newPhotos]);
+    
+    if (invalidFileNames.length > 0) {
+      setIgnoredFiles(invalidFileNames);
+      // Auto-hide the message after 5 seconds
+      setTimeout(() => setIgnoredFiles([]), 5000);
+    }
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -287,6 +314,24 @@ export default function EventUploadPage() {
   const doneCount = photos.filter(p => p.status === 'done').length;
   const allWatermarked = pendingWithoutWatermark === 0 && photos.some(p => p.watermarkFile);
 
+  if (accessDenied) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <div className="bg-card border border-white/10 p-8 rounded-2xl">
+          <Camera className="h-16 w-16 text-red-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-4">Acesso Restrito</h1>
+          <p className="text-muted-foreground mb-6">Você não tem permissão para gerenciar fotos deste evento.</p>
+          <Link 
+            href="/dashboard/fotografo"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
+          >
+            Voltar para dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link 
@@ -338,6 +383,26 @@ export default function EventUploadPage() {
           <p className="text-lg font-medium mb-2">Clique ou arraste fotos aqui</p>
           <p className="text-sm text-muted-foreground">Formatos: JPG, PNG, WebP</p>
         </div>
+
+        {/* Ignored Files Warning */}
+        {ignoredFiles.length > 0 && (
+          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-start justify-between">
+            <div>
+              <p className="text-yellow-500 font-medium mb-1">
+                {ignoredFiles.length} arquivo(s) ignorado(s) por não serem imagens válidas:
+              </p>
+              <p className="text-sm text-yellow-500/80">
+                {ignoredFiles.join(', ')}
+              </p>
+            </div>
+            <button 
+              onClick={() => setIgnoredFiles([])}
+              className="text-yellow-500 hover:text-yellow-400 p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
 
         {/* Photos Grid */}
         {photos.length > 0 && (

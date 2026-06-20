@@ -16,34 +16,33 @@ async function getProfileContext(userId: string) {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_approved')
-      .eq('id', user.id)
-      .single();
+    const { serviceSupabase, profile } = await getProfileContext(user.id);
+    const isAdmin = profile?.role === 'admin';
 
-    if (!profile || profile.role !== 'photographer' || !profile.is_approved) {
-      return NextResponse.json({ error: 'Not authorized as photographer' }, { status: 403 });
+    if (!isAdmin && (!profile || profile.role !== 'photographer' || !profile.is_approved)) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, description, category_id, city, state, date, cover_image_url, status } = body;
+    const { name, description, category_id, city, state, date, cover_image_url, status, photographer_id } = body;
 
     if (!name || !city || !state || !date) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const effectivePhotographerId = isAdmin && photographer_id ? photographer_id : user.id;
+
+    const { data, error } = await serviceSupabase
       .from('events')
       .insert({
-        photographer_id: user.id,
+        photographer_id: effectivePhotographerId,
         name,
         description,
         category_id,
@@ -68,12 +67,12 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    
+
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -84,6 +83,10 @@ export async function GET() {
     if (!isAdmin && (!profile || profile.role !== 'photographer' || !profile.is_approved)) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+    const status = searchParams.get('status') || '';
 
     let query = serviceSupabase
       .from('events')
@@ -102,6 +105,14 @@ export async function GET() {
 
     if (!isAdmin) {
       query = query.eq('photographer_id', user.id);
+    }
+
+    if (status && ['draft', 'published', 'archived'].includes(status)) {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
     }
 
     const { data: events, error } = await query;
@@ -126,8 +137,7 @@ export async function GET() {
       }
 
       for (const photo of photoRows || []) {
-        const currentCount = photoCountByEventId.get(photo.event_id) || 0;
-        photoCountByEventId.set(photo.event_id, currentCount + 1);
+        photoCountByEventId.set(photo.event_id, (photoCountByEventId.get(photo.event_id) || 0) + 1);
       }
     }
 

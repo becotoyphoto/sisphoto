@@ -1,0 +1,5 @@
+.env
+.auth/
+playwright-report/
+test-results/
+node_modules/

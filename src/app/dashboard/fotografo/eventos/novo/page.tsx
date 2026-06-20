@@ -18,7 +18,7 @@ const selectClassName =
 
 export default function NewEventPage() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading: authLoading } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,10 +44,13 @@ export default function NewEventPage() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!profile?.is_approved || profile?.role !== 'photographer') {
       setError('Você precisa ser um fotógrafo aprovado para criar eventos.');
+    } else {
+      setError(null);
     }
-  }, [profile]);
+  }, [profile, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -79,6 +82,14 @@ export default function NewEventPage() {
       setIsSaving(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (error && error.includes('aprovado')) {
     return (

@@ -15,7 +15,11 @@ export default function Navbar() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     router.push('/');
   };
 
