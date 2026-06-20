@@ -1,13 +1,13 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
-import { getTestEvent } from "../support/testData";
+import { getTestEventWithPhotos } from "../support/testData";
 import { supabaseAdmin } from "../support/supabaseAdmin";
 
 test.use({ storageState: path.resolve(__dirname, "..", ".auth", "client.json") });
 
 test.describe("Cliente — visualizar e comprar fotos", () => {
   test("adiciona uma foto ao carrinho e confirma a persistência", async ({ page }) => {
-    const { eventId } = getTestEvent();
+    const { eventId } = getTestEventWithPhotos();
 
     await page.goto(`/evento/${eventId}`);
     const photos = page.getByAltText("Foto do evento");
@@ -44,7 +44,7 @@ test.describe("Cliente — visualizar e comprar fotos", () => {
   });
 
   test("adiciona foto ao carrinho pelo grid sem abrir o visualizador", async ({ page }) => {
-    const { eventId } = getTestEvent();
+    const { eventId } = getTestEventWithPhotos();
 
     await page.goto(`/evento/${eventId}`);
     

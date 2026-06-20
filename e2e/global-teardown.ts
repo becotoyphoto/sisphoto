@@ -8,31 +8,36 @@ const STATE_FILE = path.resolve(AUTH_DIR, "test-state.json");
 export default async function globalTeardown() {
   if (!fs.existsSync(STATE_FILE)) return;
 
-  const { eventId } = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8"));
+  const state = JSON.parse(fs.readFileSync(STATE_FILE, "utf-8"));
+  const { eventId, eventWithPhotosId } = state;
 
-  // 1. Limpa itens de carrinho do evento de teste
-  await supabaseAdmin.from("cart_items").delete().eq("event_id", eventId);
+  // Lista de eventos a limpar
+  const eventIdsToClean = [eventId, eventWithPhotosId].filter(Boolean);
 
-  // 2. Busca fotos para remover do Storage
-  const { data: photos } = await supabaseAdmin
-    .from("photos")
-    .select("storage_path_original, storage_path_watermark")
-    .eq("event_id", eventId);
+  for (const eid of eventIdsToClean) {
+    // 1. Limpa itens de carrinho do evento
+    await supabaseAdmin.from("cart_items").delete().eq("event_id", eid);
 
-  // 3. Remove fotos e evento do banco
-  await supabaseAdmin.from("photos").delete().eq("event_id", eventId);
-  await supabaseAdmin.from("events").delete().eq("id", eventId);
+    // 2. Busca fotos para remover do Storage
+    const { data: photos } = await supabaseAdmin
+      .from("photos")
+      .select("storage_path_original, storage_path_watermark")
+      .eq("event_id", eid);
 
-  // 4. Remove arquivos do Storage
-  if (photos && photos.length > 0) {
-    const pathsToRemove: string[] = [];
-    photos.forEach((p) => {
-      if (p.storage_path_original) pathsToRemove.push(p.storage_path_original);
-      if (p.storage_path_watermark) pathsToRemove.push(p.storage_path_watermark);
-    });
-    
-    if (pathsToRemove.length > 0) {
-      await supabaseAdmin.storage.from("photos").remove(pathsToRemove);
+    // 3. Remove fotos e evento do banco
+    await supabaseAdmin.from("photos").delete().eq("event_id", eid);
+    await supabaseAdmin.from("events").delete().eq("id", eid);
+
+    // 4. Remove arquivos do Storage
+    if (photos && photos.length > 0) {
+      const pathsToRemove: string[] = [];
+      photos.forEach((p) => {
+        if (p.storage_path_original) pathsToRemove.push(p.storage_path_original);
+        if (p.storage_path_watermark) pathsToRemove.push(p.storage_path_watermark);
+      });
+      if (pathsToRemove.length > 0) {
+        await supabaseAdmin.storage.from("photos").remove(pathsToRemove);
+      }
     }
   }
 

@@ -130,6 +130,82 @@ export default async function globalSetup(config: FullConfig) {
     throw new Error(`Falha ao criar evento de teste: ${eventError?.message}`);
   }
 
+  // 2b) Cria um SEGUNDO evento já com 3 fotos, para specs que precisam
+  //     de fotos pré-existentes sem depender do upload via UI (01).
+  const eventWithPhotosName = `[E2E] Evento com Fotos ${Date.now()}`;
+  const { data: eventWithPhotos, error: eventWithPhotosError } = await supabaseAdmin
+    .from("events")
+    .insert({ name: eventWithPhotosName, photographer_id: photographerId, city: 'Rio de Janeiro', state: 'RJ', date: new Date().toISOString().split('T')[0], status: 'published' })
+    .select("id")
+    .single();
+
+  if (eventWithPhotosError || !eventWithPhotos) {
+    throw new Error(`Falha ao criar evento com fotos: ${eventWithPhotosError?.message}`);
+  }
+
+  // Faz upload de 3 fotos de fixture para o Storage e insere registros na tabela photos
+  const FIXTURES_DIR = path.resolve(__dirname, "fixtures", "photos");
+  const fixtureFiles = ["foto-1.jpg", "foto-2.jpg", "foto-3.jpg"];
+  const photoIds: string[] = [];
+
+  for (const fileName of fixtureFiles) {
+    const filePath = path.join(FIXTURES_DIR, fileName);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`Fixture ${fileName} não encontrada em ${FIXTURES_DIR}, pulando.`);
+      continue;
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const storagePath = `e2e-seed/${eventWithPhotos.id}/${fileName}`;
+
+    // Sobe a imagem para o bucket "photos" (marca d'água e original são o mesmo arquivo nas fixtures)
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("photos")
+      .upload(storagePath, fileBuffer, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.warn(`Erro ao subir ${fileName}: ${uploadError.message}. Usando path dummy.`);
+    }
+
+    // Cria o registro na tabela photos
+    const { data: photoRecord, error: insertError } = await supabaseAdmin
+      .from("photos")
+      .insert({
+        event_id: eventWithPhotos.id,
+        storage_path_original: storagePath,
+        storage_path_watermark: storagePath,
+        price: 15.0 + Math.random() * 10,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !photoRecord) {
+      console.warn(`Erro ao inserir foto ${fileName}: ${insertError?.message}`);
+    } else {
+      photoIds.push(photoRecord.id);
+    }
+  }
+
+  if (photoIds.length === 0) {
+    // Fallback: se falhou totalmente o upload, cria registros dummy
+    for (let i = 0; i < 3; i++) {
+      const { data: dummy, error: dummyErr } = await supabaseAdmin
+        .from("photos")
+        .insert({
+          event_id: eventWithPhotos.id,
+          storage_path_original: 'dummy/e2e-seed.jpg',
+          storage_path_watermark: 'dummy/e2e-seed.jpg',
+          price: 15.0 + i * 2,
+        })
+        .select("id")
+        .single();
+      if (dummy && !dummyErr) photoIds.push(dummy.id);
+    }
+  }
+
   // 2b) Cria um SEGUNDO fotógrafo com evento próprio (para testes de acesso cruzado)
   const otherPhotographerEmail = "fotografo4-e2e@fotoevento.com";
   const otherPhotographerPassword = "123456";
@@ -187,6 +263,8 @@ export default async function globalSetup(config: FullConfig) {
   fs.writeFileSync(STATE_FILE, JSON.stringify({
     eventId: event.id,
     eventName,
+    eventWithPhotosId: eventWithPhotos.id,
+    eventWithPhotosName,
     otherPhotographerId,
     otherEventId: otherEvent.id,
   }, null, 2));

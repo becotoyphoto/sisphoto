@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
 import { supabaseAdmin } from "../support/supabaseAdmin";
-import { getTestEvent } from "../support/testData";
+import { getTestEventWithPhotos } from "../support/testData";
 
 test.use({ storageState: path.resolve(__dirname, "..", ".auth", "client.json") });
 
@@ -22,7 +22,7 @@ test.describe("Segurança e RLS", () => {
     expect(cart).toBeDefined();
 
     // Pega uma foto qualquer, se não existir cria uma
-    const { eventId } = getTestEvent();
+    const { eventId } = getTestEventWithPhotos();
     let { data: photo } = await supabaseAdmin
       .from('photos')
       .select('id')
