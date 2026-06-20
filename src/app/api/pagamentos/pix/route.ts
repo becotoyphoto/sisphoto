@@ -47,7 +47,12 @@ function resolveSiteUrl(request: Request): string | null {
 export async function POST(request: Request) {
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
-    if (!accessToken) {
+    const isQa = !accessToken &&
+      (process.env.SUPABASE_QA_REF
+        ? (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').includes(process.env.SUPABASE_QA_REF)
+        : process.env.NODE_ENV !== 'production');
+
+    if (!accessToken && !isQa) {
       return NextResponse.json(
         { error: 'MERCADOPAGO_ACCESS_TOKEN não configurado.' },
         { status: 500 }
@@ -84,13 +89,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // Em QA (sem token), retorna um QR mock para validação do fluxo frontend.
+    // O teste de backend (simular-webhook-pagamento) roda independentemente
+    // do Mercado Pago real.
+    if (!accessToken && isQa) {
+      const externalRef = `ORD-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 6)
+        .toUpperCase()}`;
+      return NextResponse.json({
+        payment_id: `QA-MOCK-${Date.now()}`,
+        status: 'pending',
+        order_number: externalRef,
+        qr_code_base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        qr_code: `00020126580014BR.GOV.BCB.PIX0136${externalRef}@mock.qa5204000053039865404${(totalAmount * 100).toFixed(0)}5802BR5925QA-TEST${Date.now().toString().slice(-6)}6008BRASILIA62070503***6304ABCD`,
+        ticket_url: null,
+        transaction_amount: totalAmount,
+        expires_at: null,
+      });
+    }
+
     const siteUrl = resolveSiteUrl(request);
     const externalRef = `ORD-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 6)
       .toUpperCase()}`;
 
-    const client = new MercadoPagoConfig({ accessToken });
+    const client = new MercadoPagoConfig({ accessToken: accessToken as string });
     const paymentClient = new Payment(client);
 
     const result = await paymentClient.create({
