@@ -2,8 +2,8 @@
  * ROTA DE TESTE — simula o webhook de pagamento aprovado.
  *
  * ATIVAR APENAS QUANDO:
- *   - NODE_ENV !== 'production'
- *   - SUPABASE_URL contém o ref do projeto QA (sfyvyvhuzivpxcyfbbld)
+ *   - runtime não for Production deployment
+ *   - SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL contiver o ref do projeto QA
  *
  * Esta rota existe para que os testes Playwright (e2e/05-payment-flow.spec.ts)
  * possam validar a SUA lógica de negócio (lib/payment.ts) sem depender
@@ -18,20 +18,13 @@
 import { NextResponse } from 'next/server';
 import { processarConfirmacaoPagamento } from '@/lib/payment';
 import { createServiceClient } from '@/lib/supabase-service';
+import { isQaTestRouteEnabled } from '@/lib/test-env';
 
 export const runtime = 'nodejs';
 
-function isQaEnvironment(): boolean {
-  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const isProd = process.env.NODE_ENV === 'production';
-  // Identifica o projeto QA pelo ref do Supabase
-  const isQaProject = supabaseUrl.includes('sfyvyvhuzivpxcyfbbld');
-  return !isProd && isQaProject;
-}
-
 export async function POST(request: Request) {
   // 🔒 Trava de segurança: esta rota só roda em QA (e nunca em produção)
-  if (!isQaEnvironment()) {
+  if (!isQaTestRouteEnabled()) {
     return NextResponse.json(
       { error: 'Esta rota só está disponível no ambiente de QA (Sandbox).' },
       { status: 404 }
@@ -95,7 +88,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  if (!isQaEnvironment()) {
+  if (!isQaTestRouteEnabled()) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   return NextResponse.json({
