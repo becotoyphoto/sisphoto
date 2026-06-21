@@ -48,7 +48,10 @@ export async function POST(request: Request) {
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
-    // Detecta ambiente QA pelo ref do Supabase (sfyvyvhuzivpxcyfbbld)
+    // Detecta ambiente QA pelo ref do Supabase (sfyvyvhuzivpxcyfbbld).
+    // Em QA, SEMPRE retorna mock — mesmo que o token exista — porque o
+    // token de produção não funciona no sandbox e o teste valida a lógica
+    // de negócio via /api/test/simular-webhook-pagamento.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
     const supabaseQaRef = process.env.SUPABASE_QA_REF ?? 'sfyvyvhuzivpxcyfbbld';
     const isQa = supabaseUrl.includes(supabaseQaRef);
@@ -90,10 +93,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Em QA (sem token), retorna um QR mock para validação do fluxo frontend.
-    // O teste de backend (simular-webhook-pagamento) roda independentemente
-    // do Mercado Pago real.
-    if (!accessToken && isQa) {
+    // Em QA, retorna um QR mock para validação do fluxo frontend.
+    // SEMPRE retorna mock em QA — mesmo que o token exista — porque
+    // o token de teste pode não estar configurado na preview deployment.
+    if (isQa) {
       const externalRef = `ORD-${Date.now()}-${Math.random()
         .toString(36)
         .substr(2, 6)
