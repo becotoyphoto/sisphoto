@@ -29,7 +29,14 @@ interface PersistedPixState {
 
 type PaymentPhase = 'idle' | 'creating' | 'waiting' | 'paid' | 'rejected';
 
-const PIX_STORAGE_KEY = 'sisphoto_pix_state';
+// Limpeza assíncrona do cookie de sessão
+const clearPixSession = async () => {
+  try {
+    await fetch('/api/pagamentos/pix/session', { method: 'DELETE' });
+  } catch {
+    // silencioso
+  }
+};
 
 export default function CartPage() {
   const { items, total, removeItem, clearCart, cartId } = useCart();
@@ -47,30 +54,35 @@ export default function CartPage() {
   // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage
   const displayItems = items.length > 0 ? items : restoredItems;
 
-  // Restaura estado do pagamento a partir do localStorage (sobrevive reload)
+  // Restaura estado do pagamento a partir do cookie de sessão (sobrevive reload)
   useEffect(() => {
     setIsFirstRender(false);
-    try {
-      const saved = localStorage.getItem(PIX_STORAGE_KEY);
-      if (!saved) return;
-      const parsed: PersistedPixState = JSON.parse(saved);
-      if (!parsed.payment_id) return;
+    
+    const restoreSession = async () => {
+      try {
+        const res = await fetch('/api/pagamentos/pix/session');
+        const { pixData: parsed } = await res.json();
+        
+        if (!parsed?.payment_id) return;
 
-      setPixData({
-        payment_id: parsed.payment_id,
-        qr_code_base64: parsed.qr_code_base64,
-        qr_code: parsed.qr_code,
-        order_number: parsed.order_number,
-        status: 'pending',
-        transaction_amount: null,
-      });
-      setPhase('waiting');
-      if (parsed.items?.length) {
-        setRestoredItems(parsed.items);
+        setPixData({
+          payment_id: parsed.payment_id,
+          qr_code_base64: parsed.qr_code_base64,
+          qr_code: parsed.qr_code,
+          order_number: parsed.order_number,
+          status: 'pending',
+          transaction_amount: null,
+        });
+        setPhase('waiting');
+        if (parsed.items?.length) {
+          setRestoredItems(parsed.items);
+        }
+      } catch (err) {
+        clearPixSession();
       }
-    } catch {
-      localStorage.removeItem(PIX_STORAGE_KEY);
-    }
+    };
+    
+    restoreSession();
   }, []);
 
   // Reset quando o carrinho muda (pula primeiro render para não limpar restauração)
@@ -119,14 +131,18 @@ export default function CartPage() {
       setPixData(data);
       setPhase('waiting');
 
-      // Persiste no localStorage para sobreviver reload
-      localStorage.setItem(PIX_STORAGE_KEY, JSON.stringify({
-        payment_id: data.payment_id,
-        qr_code_base64: data.qr_code_base64,
-        qr_code: data.qr_code,
-        order_number: data.order_number,
-        items: items,
-      } as PersistedPixState));
+      // Persiste em cookie httpOnly para sobreviver reload
+      await fetch('/api/pagamentos/pix/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_id: data.payment_id,
+          qr_code_base64: data.qr_code_base64,
+          qr_code: data.qr_code,
+          order_number: data.order_number,
+          items: items,
+        }),
+      });
       setRestoredItems(items);
     } catch (error) {
       setPaymentError(
@@ -156,10 +172,10 @@ export default function CartPage() {
 
       if (cancelled) return;
       if (data?.status === 'paid') {
-        localStorage.removeItem(PIX_STORAGE_KEY);
+        clearPixSession();
         setPhase('paid');
       } else if (data?.status === 'cancelled' || data?.status === 'rejected') {
-        localStorage.removeItem(PIX_STORAGE_KEY);
+        clearPixSession();
         setPhase('rejected');
       } else {
         setTimeout(poll, 2000);
@@ -186,7 +202,7 @@ export default function CartPage() {
 
   const handleSimularRejeicao = () => {
     // usado em QA: mostra o estado de rejeição imediatamente (teste valida o texto)
-    localStorage.removeItem(PIX_STORAGE_KEY);
+    clearPixSession();
     setPhase('rejected');
   };
 
@@ -369,16 +385,16 @@ export default function CartPage() {
                       Pagamento não aprovado. Tente novamente.
                     </div>
                     <button
-                      onClick={() => { localStorage.removeItem(PIX_STORAGE_KEY); handlePagarComPix(); }}
-                      className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold"
-                    >
+                  onClick={() => { clearPixSession(); handlePagarComPix(); }}
+                  className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold"
+                >
                       Tentar pagar com Pix novamente
                     </button>
                   </div>
                 )}
 
                 <button
-                  onClick={() => { localStorage.removeItem(PIX_STORAGE_KEY); clearCart(); }}
+                  onClick={() => { clearPixSession(); clearCart(); }}
                   className="w-full mt-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
                 >
                   Limpar carrinho
