@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
@@ -35,7 +35,7 @@ export default function CartPage() {
   const { items, total, removeItem, clearCart, cartId } = useCart();
   const { user } = useAuth();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   const [pixData, setPixData] = useState<PixPayment | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
