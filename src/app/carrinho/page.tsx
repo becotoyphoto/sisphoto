@@ -147,8 +147,10 @@ export default function CartPage() {
 
     const poll = async () => {
       if (cancelled) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { if (!cancelled) setTimeout(poll, 1000); return; }
       const mpId = String(pixData.payment_id);
-      console.log(`[POLL] checking mercadopago_id=${mpId}, user=${user.id}`);
+      console.log(`[POLL] id=${mpId} uid=${session.user.id}`);
       const { data, error } = await supabase
         .from('orders')
         .select('status')
