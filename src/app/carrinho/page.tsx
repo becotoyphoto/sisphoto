@@ -52,10 +52,12 @@ export default function CartPage() {
     setIsFirstRender(false);
     try {
       const saved = localStorage.getItem(PIX_STORAGE_KEY);
+      console.log(`[RESTORE] localStorage key=${PIX_STORAGE_KEY}, value=${saved?.substring(0, 100)}`);
       if (!saved) return;
       const parsed: PersistedPixState = JSON.parse(saved);
       if (!parsed.payment_id) return;
 
+      console.log(`[RESTORE] payment_id=${parsed.payment_id}`);
       setPixData({
         payment_id: parsed.payment_id,
         qr_code_base64: parsed.qr_code_base64,
@@ -144,13 +146,16 @@ export default function CartPage() {
 
     const poll = async () => {
       if (cancelled) return;
-      const { data } = await supabase
+      const mpId = String(pixData.payment_id);
+      console.log(`[POLL] checking mercadopago_id=${mpId}`);
+      const { data, error } = await supabase
         .from('orders')
         .select('status')
-        .eq('mercadopago_id', String(pixData.payment_id))
+        .eq('mercadopago_id', mpId)
         .maybeSingle();
 
       if (cancelled) return;
+      console.log(`[POLL] result:`, JSON.stringify(data), `error:`, JSON.stringify(error));
       if (data?.status === 'paid') {
         localStorage.removeItem(PIX_STORAGE_KEY);
         setPhase('paid');
