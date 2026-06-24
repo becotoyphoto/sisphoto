@@ -159,7 +159,7 @@ export default function CartPage() {
       if (data?.status === 'paid') {
         localStorage.removeItem(PIX_STORAGE_KEY);
         setPhase('paid');
-      } else if (data?.status === 'rejected') {
+      } else if (data?.status === 'cancelled' || data?.status === 'rejected') {
         localStorage.removeItem(PIX_STORAGE_KEY);
         setPhase('rejected');
       } else {

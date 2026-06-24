@@ -24,7 +24,7 @@ export interface ProcessarConfirmacaoInput {
 export interface ProcessarConfirmacaoResult {
   alreadyProcessed: boolean;
   orderId?: string;
-  status: 'paid' | 'pending' | 'rejected' | 'no-op';
+  status: 'paid' | 'pending' | 'cancelled' | 'no-op';
   message: string;
 }
 
@@ -70,7 +70,7 @@ export async function processarConfirmacaoPagamento(
         await supabase.from('orders').insert({
           user_id: rejUserId,
           total_amount: 0,
-          status: 'rejected',
+          status: 'cancelled',
           mercadopago_id: String(paymentId),
         });
       }
@@ -78,7 +78,7 @@ export async function processarConfirmacaoPagamento(
 
     return {
       alreadyProcessed: false,
-      status: mappedStatus,
+      status: mappedStatus === 'rejected' ? 'cancelled' : mappedStatus,
       message: `Pagamento ${paymentId} com status "${status}" — nenhuma ação necessária.`,
     };
   }
