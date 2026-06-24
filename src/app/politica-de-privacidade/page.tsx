@@ -107,7 +107,7 @@ export default function PoliticaDePrivacidadePage() {
             direitos:<br />
             E-mail: contato@becotoy.com.br<br />
             Telefone: (21) 99785-3031<br />
-            Responsável: BECOTOY LTDA. - CNPJ: 00.000.000/0001-00
+            Responsável: BECOTOY LTDA. - CNPJ em atualização cadastral.
           </p>
         </section>
       </div>

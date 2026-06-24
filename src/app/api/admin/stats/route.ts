@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/supabase-server';
+import { getCommissionRate } from '@/lib/platform-settings';
 
 export async function GET(request: Request) {
   try {
@@ -57,6 +58,8 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .limit(5);
 
+    const commissionRate = await getCommissionRate();
+
     return NextResponse.json({
       stats: {
         photographersCount: photographersCount || 0,
@@ -65,7 +68,7 @@ export async function GET(request: Request) {
         photosCount: photosCount || 0,
         usersCount: usersCount || 0,
         totalRevenue,
-        platformCommission: totalRevenue * 0.15,
+        platformCommission: totalRevenue * commissionRate,
       },
       recentOrders: recentOrders || [],
       recentPhotographers: recentPhotographers || [],

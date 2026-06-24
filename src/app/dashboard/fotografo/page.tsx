@@ -99,6 +99,36 @@ export default function PhotographerDashboard() {
     }
   };
 
+  const handlePublishEvent = async (eventId: string, eventName: string) => {
+    const confirmed = window.confirm(`Publicar o evento "${eventName}"? Ele ficará visível para clientes.`);
+    if (!confirmed) return;
+
+    setActionLoading(eventId);
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'published' }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        alert(data.error || 'Não foi possível publicar o evento.');
+        return;
+      }
+
+      setEvents((prev) =>
+        prev.map((e) => (e.id === eventId ? { ...e, status: 'published' } : e))
+      );
+    } catch (err) {
+      console.error('Error publishing event:', err);
+      alert('Erro ao publicar evento.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (error) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
@@ -281,11 +311,17 @@ export default function PhotographerDashboard() {
                             <Eye className="h-5 w-5 text-muted-foreground" />
                           </Link>
                         ) : (
-                          <button 
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                          <button
+                            onClick={() => handlePublishEvent(event.id, event.name)}
+                            disabled={actionLoading === event.id}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
                             title="Publicar"
                           >
-                            <EyeOff className="h-5 w-5 text-muted-foreground" />
+                            {actionLoading === event.id ? (
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            ) : (
+                              <EyeOff className="h-5 w-5 text-primary" />
+                            )}
                           </button>
                         )}
                         <button

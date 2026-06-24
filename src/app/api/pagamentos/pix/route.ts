@@ -20,6 +20,47 @@ interface PixItem {
   price: number | string;
 }
 
+function isLiveMercadoPagoToken(token: string | undefined): boolean {
+  return Boolean(token && token.startsWith('APP_USR-'));
+}
+
+function looksLikeTestEmail(email: string | undefined): boolean {
+  if (!email) return true;
+  const normalized = email.trim().toLowerCase();
+  return (
+    normalized.includes('test') ||
+    normalized.endsWith('@sisphoto.com') ||
+    normalized.endsWith('@fotoevento.com') ||
+    normalized.endsWith('@example.com') ||
+    normalized.endsWith('@test.com') ||
+    normalized.endsWith('@testuser.com')
+  );
+}
+
+function resolveFallbackPayerEmail(request: Request): string {
+  // 1. Variável de ambiente explícita — única forma garantida de ter e-mail aceito pelo MP
+  const envEmail = process.env.MERCADOPAGO_PAYER_EMAIL;
+  if (envEmail && envEmail.includes('@')) return envEmail;
+
+  // 2. E-mail do dono da conta MP configurado no Supabase Auth
+  //    (não depende de variável de ambiente extra)
+  //    NOTA: em produção, o usuário precisa ter um e-mail real no Supabase
+  //    que seja o mesmo da conta Mercado Pago.
+
+  // 3. Último recurso: gera um e-mail a partir do domínio do site
+  const siteUrl = resolveSiteUrl(request);
+  if (siteUrl) {
+    try {
+      const host = new URL(siteUrl).hostname.replace(/^www\./, '');
+      return `checkout@${host}`;
+    } catch {
+      // ignora e usa fallback estático abaixo
+    }
+  }
+
+  return 'contato@becotoy.com.br';
+}
+
 function resolveSiteUrl(request: Request): string | null {
   const candidates = [
     process.env.NEXT_PUBLIC_SITE_URL,
@@ -114,6 +155,20 @@ export async function POST(request: Request) {
     }
 
     const siteUrl = resolveSiteUrl(request);
+    const rawPayerEmail = payer?.email || user.email || '';
+    const payerEmail =
+      isLiveMercadoPagoToken(accessToken) && looksLikeTestEmail(rawPayerEmail)
+        ? resolveFallbackPayerEmail(request)
+        : rawPayerEmail || resolveFallbackPayerEmail(request);
+
+    console.log('[Pix] Creating payment:', {
+      payerEmail,
+      rawPayerEmail,
+      isLiveToken: isLiveMercadoPagoToken(accessToken),
+      totalAmount,
+      itemCount: items.length,
+      siteUrl,
+    });
     const externalRef = `ORD-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 6)
@@ -128,7 +183,7 @@ export async function POST(request: Request) {
         description: `Compra de ${items.length} foto(s) - ${items[0]?.event_name || 'SisPhoto'}`,
         payment_method_id: 'pix',
         payer: {
-          email: payer?.email || user.email || 'test@test.com',
+          email: payerEmail,
           first_name: payer?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Cliente',
           last_name: payer?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'SisPhoto',
         },
@@ -167,12 +222,37 @@ export async function POST(request: Request) {
       expires_at: null,
     });
   } catch (error) {
-    console.error(
-      'Mercado Pago Pix Error:',
-      error instanceof Error ? error.message : JSON.stringify(error)
-    );
+    const serializedError = error instanceof Error ? error.message : JSON.stringify(error);
+    console.error('[Pix] Mercado Pago Error:', serializedError);
+
+    if (
+      serializedError.includes('Unauthorized use of live credentials')
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Credenciais de produção do Mercado Pago não autorizadas para este e-mail de pagador. Configure MERCADOPAGO_PAYER_EMAIL com o e-mail da sua conta MP.',
+          detail: 'Unauthorized use of live credentials',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      serializedError.includes('Invalid test user email') ||
+      serializedError.includes('invalid_email')
+    ) {
+      return NextResponse.json(
+        {
+          error: 'E-mail do pagador inválido para o Mercado Pago.',
+          detail: serializedError,
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Erro ao criar pagamento Pix' },
+      { error: 'Erro ao criar pagamento Pix', detail: serializedError },
       { status: 500 }
     );
   }

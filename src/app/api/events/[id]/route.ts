@@ -32,10 +32,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { service, role } = await getActorRole(user.id);
 
-    if (role !== 'admin') {
-      return NextResponse.json({ error: 'Only admin can change event status' }, { status: 403 });
-    }
-
     const body = await request.json();
     const { status: newStatus } = body;
 
@@ -45,7 +41,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: event } = await service
       .from('events')
-      .select('id, status')
+      .select('id, status, photographer_id')
       .eq('id', id)
       .single();
 
@@ -53,12 +49,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const allowedTransitions = VALID_STATUS_TRANSITIONS[event.status] || [];
-    if (!allowedTransitions.includes(newStatus)) {
+    // Admin pode alterar qualquer status; fotógrafo só pode publicar seus próprios drafts
+    const isOwner = event.photographer_id === user.id;
+    const canTransition =
+      role === 'admin' ||
+      (isOwner && event.status === 'draft' && newStatus === 'published');
+
+    if (!canTransition) {
       return NextResponse.json(
         { error: `Cannot change status from ${event.status} to ${newStatus}` },
-        { status: 400 }
+        { status: 403 }
       );
+    }
+
+    // Validação de transições para admin
+    if (role === 'admin') {
+      const allowedTransitions = VALID_STATUS_TRANSITIONS[event.status] || [];
+      if (!allowedTransitions.includes(newStatus)) {
+        return NextResponse.json(
+          { error: `Cannot change status from ${event.status} to ${newStatus}` },
+          { status: 400 }
+        );
+      }
     }
 
     const { data, error } = await service

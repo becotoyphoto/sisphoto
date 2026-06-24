@@ -1,5 +1,11 @@
+import type { Metadata } from 'next';
 import { Camera, Check, Star, TrendingUp, Users, Zap, CreditCard, Smartphone, Award, Gift, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Para fotógrafos | BecoToy',
+  description: 'Conheça a plataforma da BecoToy para publicar eventos, vender fotos online e receber suporte completo na operação.',
+};
 
 export default function PhotographerPage() {
   return (
@@ -60,7 +66,7 @@ export default function PhotographerPage() {
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { icon: Star, title: 'Melhor taxa do mercado', desc: 'Com as menores taxas do mercado, você lucra mais em cada venda.' },
-              { icon: TrendingUp, title: '5M+ acessos mensais', desc: 'Alta visibilidade para seu trabalho com milhões de acessos por mês.' },
+              { icon: TrendingUp, title: 'Plataforma em expansão', desc: 'Mais visibilidade para o seu trabalho com foco em eventos e fotografia esportiva.' },
               { icon: Camera, title: 'Reconhecimento facial', desc: 'Tecnologia de ponta que conecta suas fotos aos clientes automaticamente.' },
               { icon: CreditCard, title: 'Todas as formas de pagamento', desc: 'Seus clientes podem pagar com cartão, PIX ou boleto.' },
               { icon: Smartphone, title: 'Saque via PIX 24h', desc: 'Receba suas vendas em até 24h via PIX, sem burocracia.' },
@@ -109,7 +115,7 @@ export default function PhotographerPage() {
               </div>
               <h3 className="font-bold text-lg mb-2">Sorteios mensais</h3>
               <p className="text-muted-foreground text-sm">
-                Participe de sorteios exclusivos de equipamentos фотográficos e acessórios.
+                Participe de sorteios exclusivos de equipamentos fotográficos e acessórios.
               </p>
             </div>
             
@@ -174,7 +180,7 @@ export default function PhotographerPage() {
             Pronto para começar a vender fotos?
           </h2>
           <p className="text-muted-foreground text-lg mb-8">
-            Junte-se a milhares de fotógrafos que já estão vendendo na BecoToy.
+            Cadastre seus eventos e comece a vender com uma operação simples e profissional.
           </p>
           
           <Link 

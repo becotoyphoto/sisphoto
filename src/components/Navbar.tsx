@@ -16,11 +16,13 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
+      setIsOpen(false);
       await signOut();
     } catch (err) {
       console.error('Logout error:', err);
     }
-    router.push('/');
+    router.replace('/');
+    router.refresh();
   };
 
   const dashboardHref =
@@ -48,7 +50,7 @@ export default function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/carrinho" className="relative p-2 hover:bg-white/5 rounded-full transition-colors">
+            <Link href="/carrinho" aria-label="Carrinho" title="Carrinho" className="relative p-2 hover:bg-white/5 rounded-full transition-colors">
               <ShoppingCart className="h-5 w-5" />
               {itemCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">
@@ -93,7 +95,7 @@ export default function Navbar() {
           <div className="md:hidden flex items-center gap-2">
             {user ? (
               <>
-                <Link href="/carrinho" className="relative p-2 hover:bg-white/5 rounded-full transition-colors">
+                <Link href="/carrinho" aria-label="Carrinho" title="Carrinho" className="relative p-2 hover:bg-white/5 rounded-full transition-colors">
                   <ShoppingCart className="h-5 w-5" />
                   {itemCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] rounded-full h-5 w-5 flex items-center justify-center font-bold">

@@ -18,6 +18,7 @@ export default function PhotographerRegisterPage() {
     password: '',
     confirmPassword: '',
     acceptTerms: false,
+    lgpdConsent: false,
   });
 
   const { signUp } = useAuth();
@@ -44,6 +45,12 @@ export default function PhotographerRegisterPage() {
 
     if (!formData.acceptTerms) {
       setError('Você precisa aceitar os termos de uso.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.lgpdConsent) {
+      setError('Você precisa consentir com o tratamento de seus dados pessoais (LGPD).');
       setIsLoading(false);
       return;
     }
@@ -241,6 +248,23 @@ export default function PhotographerRegisterPage() {
               <Link href="/termos-de-uso" className="text-primary hover:underline">Termos de Uso</Link>
               {' '}e{' '}
               <Link href="/politica-de-privacidade" className="text-primary hover:underline">Política de Privacidade</Link>
+            </label>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              name="lgpdConsent"
+              id="lgpdConsent"
+              checked={formData.lgpdConsent}
+              onChange={handleChange}
+              required
+              className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
+            />
+            <label htmlFor="lgpdConsent" className="text-sm text-muted-foreground">
+              Autorizo o tratamento dos meus dados pessoais conforme a{' '}
+              <Link href="/politica-de-privacidade" className="text-primary hover:underline">Política de Privacidade</Link>.
+              Estou ciente de que fotos tiradas em eventos podem ser publicadas pela plataforma.
             </label>
           </div>
 

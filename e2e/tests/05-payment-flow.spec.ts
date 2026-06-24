@@ -90,8 +90,8 @@ test.describe("Pagamento via Pix", () => {
     // Só então confirma na UI que o download em alta resolução foi liberado.
     // Escopamos ao card de resumo do carrinho para não conflitar com
     // o link global "Baixar fotos" do footer.
-    const resumoCard = page.getByRole("heading", { name: "Resumo" }).locator("..");
     await page.reload();
+    const resumoCard = page.getByTestId("resumo-card");
     await expect(resumoCard.getByRole("link", { name: /baixar foto/i })).toBeVisible({ timeout: 10000 });
   });
 
@@ -149,9 +149,9 @@ test.describe("Pagamento via Pix", () => {
     });
 
     // Escopa ao card de resumo para não conflitar com link global do footer
-    const resumoCard = page.getByRole("heading", { name: "Resumo" }).locator("..");
     await page.reload();
+    const resumoCard = page.getByTestId("resumo-card");
     await expect(resumoCard.getByRole("link", { name: /baixar foto/i })).not.toBeVisible();
-    await expect(page.getByText(/pagamento (recusado|não aprovado)/i)).toBeVisible();
+    await expect(resumoCard.getByText(/pagamento (recusado|não aprovado)/i)).toBeVisible();
   });
 });

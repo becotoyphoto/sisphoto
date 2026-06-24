@@ -4,11 +4,31 @@ import { createServiceClient } from '@/lib/supabase-service';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const city = searchParams.get('city');
-    const q = searchParams.get('q');
+    const category = searchParams.get('category')?.trim();
+    const city = searchParams.get('city')?.trim();
+    const q = searchParams.get('q')?.trim();
 
     const service = createServiceClient();
+    let categoryId: string | null = null;
+
+    if (category) {
+      const { data: categoryRow, error: categoryError } = await service
+        .from('categories')
+        .select('id')
+        .eq('slug', category)
+        .maybeSingle();
+
+      if (categoryError) {
+        console.error('Error resolving category for search:', categoryError);
+        return NextResponse.json({ error: categoryError.message }, { status: 500 });
+      }
+
+      if (!categoryRow?.id) {
+        return NextResponse.json([]);
+      }
+
+      categoryId = categoryRow.id;
+    }
 
     let query = service
       .from('events')
@@ -28,8 +48,8 @@ export async function GET(request: Request) {
       .order('date', { ascending: false })
       .limit(50);
 
-    if (category) {
-      query = query.eq('category.slug', category);
+    if (categoryId) {
+      query = query.eq('category_id', categoryId);
     }
 
     if (city) {

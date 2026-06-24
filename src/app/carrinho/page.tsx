@@ -51,8 +51,9 @@ export default function CartPage() {
   const [restoredItems, setRestoredItems] = useState<CartItem[]>([]);
   const [isFirstRender, setIsFirstRender] = useState(true);
 
-  // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage
+  // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage/banco
   const displayItems = items.length > 0 ? items : restoredItems;
+  const displayTotal = displayItems.reduce((acc, item) => acc + item.price, 0);
 
   // Restaura estado do pagamento a partir do cookie de sessão (sobrevive reload)
   useEffect(() => {
@@ -63,27 +64,81 @@ export default function CartPage() {
         const res = await fetch('/api/pagamentos/pix/session');
         const { pixData: parsed } = await res.json();
         
-        if (!parsed?.payment_id) return;
-
-        setPixData({
-          payment_id: parsed.payment_id,
-          qr_code_base64: parsed.qr_code_base64,
-          qr_code: parsed.qr_code,
-          order_number: parsed.order_number,
-          status: 'pending',
-          transaction_amount: null,
-        });
-        setPhase('waiting');
-        if (parsed.items?.length) {
-          setRestoredItems(parsed.items);
+        if (parsed?.payment_id) {
+          setPixData({
+            payment_id: parsed.payment_id,
+            qr_code_base64: parsed.qr_code_base64,
+            qr_code: parsed.qr_code,
+            order_number: parsed.order_number,
+            status: 'pending',
+            transaction_amount: null,
+          });
+          setPhase('waiting');
+          if (parsed.items?.length) {
+            setRestoredItems(parsed.items);
+          }
+          // Não dá return aqui! Continua para checar se no banco já está pago/cancelado.
         }
       } catch (err) {
         clearPixSession();
       }
+
+      // Se não tem cookie (ou falhou), ou se o cookie diz 'waiting',
+      // verifica se houve rejeição/pagamento recente nas últimas 24h
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data } = await supabase
+        .from('orders')
+        .select('status, id, mercadopago_id')
+        .eq('user_id', session.user.id)
+        .in('status', ['paid', 'cancelled'])
+        .gte('created_at', twentyFourHoursAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+        
+      if (data?.status === 'cancelled') {
+        setPhase('rejected');
+      } else if (data?.status === 'paid') {
+        setPhase('paid');
+        
+        // Busca os itens separadamente para evitar problemas de join/RLS
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('photo_id, price_at_purchase')
+          .eq('order_id', data.id);
+          
+        if (items && items.length > 0) {
+          const mappedItems: CartItem[] = items.map((oi: any) => ({
+            id: oi.photo_id,
+            photo_id: oi.photo_id,
+            event_id: '',
+            event_name: 'Foto do Evento',
+            price: oi.price_at_purchase || 0,
+            image_url: '',
+          }));
+          setRestoredItems(mappedItems);
+        } else {
+          // Fallback se RLS bloquear a leitura dos order_items
+          setRestoredItems([{
+            id: 'fallback-id',
+            photo_id: 'fallback-id',
+            event_id: '',
+            event_name: 'Foto do Evento (Recuperada)',
+            price: 0,
+            image_url: '',
+          }]);
+        }
+      } else {
+        console.error('[CartPage] No recent order found or status is pending.');
+      }
     };
     
     restoreSession();
-  }, []);
+  }, [supabase]);
 
   // Reset quando o carrinho muda (pula primeiro render para não limpar restauração)
   useEffect(() => {
@@ -208,6 +263,12 @@ export default function CartPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* DEBUG INFO */}
+      {process.env.NODE_ENV !== 'production' && (
+        <div data-testid="debug-info" className="hidden">
+          phase: {phase}, items: {items.length}, restored: {restoredItems.length}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <ShoppingBag className="h-8 w-8 text-primary" />
@@ -222,8 +283,8 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
-          {items.length > 0 ? (
-            items.map((item) => (
+          {displayItems.length > 0 ? (
+            displayItems.map((item) => (
               <div key={item.id} className="flex items-center gap-4 bg-card border border-white/10 p-4 rounded-2xl">
                 <img
                   src={item.image_url || 'https://via.placeholder.com/100'}
@@ -234,12 +295,16 @@ export default function CartPage() {
                   <h3 className="font-bold text-sm line-clamp-1">{item.event_name}</h3>
                   <p className="text-primary font-bold">R$ {item.price.toFixed(2)}</p>
                 </div>
-                <button
-                  onClick={() => removeItem(item.photo_id)}
-                  className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                {phase === 'idle' && (
+                  <button
+                    onClick={() => removeItem(item.photo_id)}
+                    aria-label={`Remover ${item.event_name} do carrinho`}
+                    title="Remover do carrinho"
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
               </div>
             ))
           ) : (
@@ -258,19 +323,19 @@ export default function CartPage() {
 
         {/* Summary / Pagamento */}
         <div className="lg:col-span-1">
-          <div className="bg-card border border-white/10 p-6 rounded-2xl sticky top-24">
+          <div data-testid="resumo-card" className="bg-card border border-white/10 p-6 rounded-2xl sticky top-24">
             <h2 className="text-xl font-bold mb-6">Resumo</h2>
 
-            {items.length > 0 ? (
+            {displayItems.length > 0 || phase !== 'idle' ? (
               <>
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Itens ({items.length})</span>
-                    <span>R$ {total.toFixed(2)}</span>
+                    <span>Itens ({displayItems.length})</span>
+                    <span>R$ {displayTotal.toFixed(2)}</span>
                   </div>
                   <div className="border-t border-white/10 pt-4 flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span className="text-primary">R$ {total.toFixed(2)}</span>
+                    <span className="text-primary">R$ {displayTotal.toFixed(2)}</span>
                   </div>
                 </div>
 

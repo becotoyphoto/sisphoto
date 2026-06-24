@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Home, Search, ShoppingCart, Image as ImageIcon, Menu } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Home, Search, ShoppingCart, Image as ImageIcon, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,8 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function BottomNavBar() {
   const pathname = usePathname();
   const { itemCount } = useCart();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const accountHref =
     profile?.role === 'admin'
       ? '/dashboard/admin'
@@ -26,6 +27,17 @@ export default function BottomNavBar() {
     { href: user ? accountHref : '/login', label: accountLabel, icon: ImageIcon },
     { href: '#opcoes', label: 'Opções', icon: Menu },
   ];
+
+  const handleLogout = async () => {
+    try {
+      setOpen(false);
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    router.replace('/');
+    router.refresh();
+  };
 
   return (
     <>
@@ -43,9 +55,19 @@ export default function BottomNavBar() {
               <Link href="/categorias" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Categorias</Link>
               <Link href="/fotografo" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Sou fotógrafo</Link>
             {user ? (
+              <>
                 <Link href={accountHref} onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">
-                Minha conta
-              </Link>
+                  Minha conta
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-2xl px-4 py-3 text-left font-medium text-red-300 hover:bg-white/10"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sair
+                </button>
+              </>
             ) : (
               <>
                   <Link href="/login" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Entrar</Link>

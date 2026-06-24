@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Camera, DollarSign, Image as ImageIcon, Clock, CheckCircle, XCircle, Loader2, UserPlus, FolderOpen, ArrowRight } from 'lucide-react';
+import { Users, Camera, DollarSign, Image as ImageIcon, Clock, CheckCircle, XCircle, Loader2, UserPlus, FolderOpen, ArrowRight, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -21,17 +21,35 @@ export default function AdminDashboard() {
   const [recentPhotographers, setRecentPhotographers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [commissionRate, setCommissionRate] = useState(15);
+  const [editingCommission, setEditingCommission] = useState(false);
+  const [commissionDraft, setCommissionDraft] = useState('15');
+  const [savingCommission, setSavingCommission] = useState(false);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const response = await fetch('/api/admin/stats');
-        if (response.ok) {
-          const data = await response.json();
+        const [statsRes, settingsRes] = await Promise.all([
+          fetch('/api/admin/stats'),
+          fetch('/api/admin/settings'),
+        ]);
+
+        if (statsRes.ok) {
+          const data = await statsRes.json();
           setStats(data.stats);
           setRecentPhotographers(data.recentPhotographers);
-        } else if (response.status === 403) {
+        } else if (statsRes.status === 403) {
           setError('Você não tem permissão para acessar esta página.');
+        }
+
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json();
+          const rate = settings.commission_rate?.rate;
+          if (rate != null) {
+            const pct = Math.round(Number(rate) * 100);
+            setCommissionRate(pct);
+            setCommissionDraft(String(pct));
+          }
         }
       } catch (err) {
         console.error('Error loading admin data:', err);
@@ -41,6 +59,37 @@ export default function AdminDashboard() {
     }
     loadData();
   }, []);
+
+  const handleSaveCommission = async () => {
+    const pct = parseFloat(commissionDraft);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      alert('Valor inválido. Use um número entre 0 e 100.');
+      return;
+    }
+
+    setSavingCommission(true);
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'commission_rate',
+          value: { rate: pct / 100 },
+        }),
+      });
+
+      if (response.ok) {
+        setCommissionRate(pct);
+        setEditingCommission(false);
+      } else {
+        alert('Erro ao salvar comissão.');
+      }
+    } catch {
+      alert('Erro ao salvar comissão.');
+    } finally {
+      setSavingCommission(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -121,8 +170,42 @@ export default function AdminDashboard() {
             <p className="text-2xl font-bold text-green-500">R$ {(stats?.totalRevenue || 0).toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Comissão (15%)</p>
-            <p className="text-2xl font-bold text-blue-500">R$ {(stats?.platformCommission || 0).toFixed(2)}</p>
+            <p className="text-sm text-muted-foreground mb-1">Comissão</p>
+            {editingCommission ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  value={commissionDraft}
+                  onChange={(e) => setCommissionDraft(e.target.value)}
+                  className="w-20 bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-lg font-bold text-blue-500 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-blue-500 font-bold">%</span>
+                <button
+                  onClick={handleSaveCommission}
+                  disabled={savingCommission}
+                  className="p-1 bg-green-500/20 text-green-500 hover:bg-green-500/30 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {savingCommission ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={() => { setEditingCommission(false); setCommissionDraft(String(commissionRate)); }}
+                  className="p-1 bg-white/10 text-muted-foreground hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <XCircle className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setEditingCommission(true)}
+                className="text-2xl font-bold text-blue-500 hover:text-blue-400 transition-colors cursor-pointer"
+                title="Clique para editar"
+              >
+                {commissionRate}% <span className="text-sm font-normal text-muted-foreground">(R$ {(stats?.platformCommission || 0).toFixed(2)})</span>
+              </button>
+            )}
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Total de Fotos</p>
@@ -132,7 +215,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link 
           href="/dashboard/admin/fotografos"
           className="bg-card border border-white/10 p-6 rounded-2xl hover:border-primary/50 transition-all group"
@@ -175,6 +258,20 @@ export default function AdminDashboard() {
           </div>
           <h3 className="font-bold text-lg mt-4">Ver Eventos</h3>
           <p className="text-sm text-muted-foreground mt-1">{stats?.eventsCount || 0} evento(s) cadastrado(s)</p>
+        </Link>
+
+        <Link
+          href="/dashboard/admin/saques"
+          className="bg-card border border-white/10 p-6 rounded-2xl hover:border-primary/50 transition-all group"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-500/10 rounded-xl">
+              <Banknote className="h-6 w-6 text-green-500" />
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <h3 className="font-bold text-lg mt-4">Saques</h3>
+          <p className="text-sm text-muted-foreground mt-1">Aprovar ou rejeitar solicitações</p>
         </Link>
       </div>
 

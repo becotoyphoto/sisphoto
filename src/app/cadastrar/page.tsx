@@ -15,6 +15,7 @@ export default function CadastrarPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [lgpdAccepted, setLgpdAccepted] = useState(false);
 
   const { signUp } = useAuth();
   const router = useRouter();
@@ -35,6 +36,11 @@ export default function CadastrarPage() {
 
     if (!termsAccepted) {
       setError('Você precisa aceitar os termos de uso.');
+      return;
+    }
+
+    if (!lgpdAccepted) {
+      setError('Você precisa consentir com o tratamento de seus dados pessoais (LGPD).');
       return;
     }
 
@@ -170,6 +176,19 @@ export default function CadastrarPage() {
             />
             <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
               Li e aceito os <Link href="/termos" className="text-primary hover:underline">Termos de Uso</Link> e a <Link href="/privacidade" className="text-primary hover:underline">Política de Privacidade</Link>
+            </label>
+          </div>
+
+          <div className="flex items-start gap-3">
+            <input 
+              type="checkbox" 
+              id="lgpd"
+              checked={lgpdAccepted}
+              onChange={(e) => setLgpdAccepted(e.target.checked)}
+              className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary"
+            />
+            <label htmlFor="lgpd" className="text-sm text-muted-foreground cursor-pointer">
+              Autorizo o tratamento dos meus dados pessoais conforme a <Link href="/privacidade" className="text-primary hover:underline">Política de Privacidade</Link>. Estou ciente de que fotos tiradas em eventos podem ser publicadas pela plataforma.
             </label>
           </div>
 

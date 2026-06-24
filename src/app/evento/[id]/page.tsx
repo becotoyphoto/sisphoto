@@ -317,8 +317,8 @@ export default function EventPage() {
               )}
               
               {/* Hover overlay with actions */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none group-hover:pointer-events-auto">
-                <div className="flex items-center justify-between gap-1">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
+                <div className="flex items-center justify-between gap-1 pointer-events-auto">
                   <p className="text-xs font-bold truncate">R$ {Number(photo.price).toFixed(2)}</p>
                   
                   <div className="flex items-center gap-1">
@@ -384,7 +384,7 @@ export default function EventPage() {
 
       {/* Fullscreen Photo Viewer */}
       {selectedPhoto && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        <div className="fixed inset-0 z-[60] flex flex-col bg-black">
           {/* Top bar */}
           <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
             <span className="text-sm text-white/70">
@@ -431,7 +431,7 @@ export default function EventPage() {
           </div>
 
           {/* Bottom Area: Carousel + Actions */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col">
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-gradient-to-t from-black via-black/90 to-transparent pb-4">
             
             {/* Thumbnail Carousel */}
             <div className="w-full overflow-x-auto flex items-center gap-2 px-4 py-2 scrollbar-hide snap-x">

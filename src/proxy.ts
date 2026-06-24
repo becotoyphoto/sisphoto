@@ -34,7 +34,12 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  // Refresh session sem bloquear a requisição em caso de erro
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Silencioso — não bloqueia a requisição
+  }
 
   return response;
 }

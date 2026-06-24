@@ -30,8 +30,8 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/buscar" className="hover:text-primary transition-colors">Buscar fotos</Link></li>
               <li><Link href="/fotografo" className="hover:text-primary transition-colors">Vender fotos</Link></li>
-              <li><Link href="/suas-fotos" className="hover:text-primary transition-colors">Baixar fotos</Link></li>
-              <li><Link href="/contratar-fotografo" className="hover:text-primary transition-colors">Contratar um fotógrafo</Link></li>
+              <li><Link href="/dashboard/cliente" className="hover:text-primary transition-colors">Baixar fotos</Link></li>
+              <li><Link href="/central-de-ajuda" className="hover:text-primary transition-colors">Falar com suporte</Link></li>
             </ul>
           </div>
 
@@ -52,7 +52,7 @@ export default function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-muted-foreground">
             <div>
               <h4 className="font-semibold text-foreground mb-1">BECOTOY LTDA.</h4>
-              <p>CNPJ: 00.000.000/0001-00</p>
+              <p>CNPJ em atualização cadastral.</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-1">Contato</h4>

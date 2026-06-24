@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase-client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface CartItem {
   id: string;
@@ -26,53 +27,120 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+function getCartStorageKey(userId: string | null) {
+  return userId ? `fotoevento_cart:${userId}` : 'fotoevento_cart:guest';
+}
+
+function parseStoredCart(userId: string | null): CartItem[] {
+  try {
+    const savedCart = localStorage.getItem(getCartStorageKey(userId));
+    return savedCart ? (JSON.parse(savedCart) as CartItem[]) : [];
+  } catch (error) {
+    console.error('Error parsing cart from localStorage:', error);
+    return [];
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { user, isLoading: isAuthLoading } = useAuth();
 
   useEffect(() => {
-    const savedCart = localStorage.getItem('fotoevento_cart');
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart));
-      } catch (e) {
-        console.error('Error parsing cart from localStorage:', e);
+    if (isAuthLoading) return;
+
+    let active = true;
+
+    const loadCart = async () => {
+      setIsLoading(true);
+
+      const localItems = parseStoredCart(user?.id ?? null);
+      if (!active) return;
+
+      if (!user) {
+        setCartId(null);
+        setItems(localItems);
+        setIsLoading(false);
+        return;
       }
-    }
-  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('fotoevento_cart', JSON.stringify(items));
-  }, [items]);
+      try {
+        const { data: cart, error: cartError } = await supabase
+          .from('carts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
 
-  const syncWithServer = async () => {
-    if (cartId) {
-      const { data } = await supabase
-        .from('cart_items')
-        .select(`
-          *,
-          photo:photos (
-            storage_path_watermark,
-            event:events (name)
-          )
-        `)
-        .eq('cart_id', cartId);
+        if (cartError) {
+          throw cartError;
+        }
 
-      if (data) {
-        const serverItems = data.map((item: any) => ({
+        if (!active) return;
+
+        if (!cart?.id) {
+          setCartId(null);
+          setItems(localItems);
+          return;
+        }
+
+        setCartId(cart.id);
+
+        const { data: serverItemsRaw, error: itemsError } = await supabase
+          .from('cart_items')
+          .select(`
+            id,
+            photo_id,
+            price,
+            photo:photos (
+              event_id,
+              event:events (name)
+            )
+          `)
+          .eq('cart_id', cart.id);
+
+        if (itemsError) {
+          throw itemsError;
+        }
+
+        if (!active) return;
+
+        const serverItems: CartItem[] = (serverItemsRaw ?? []).map((item: any) => ({
           id: item.id,
           photo_id: item.photo_id,
-          event_id: item.photo?.event?.id || '',
+          event_id: item.photo?.event_id || '',
           event_name: item.photo?.event?.name || 'Evento',
           image_url: '',
           price: item.price,
         }));
+
         setItems(serverItems);
+      } catch (error) {
+        console.error('Error loading cart:', error);
+        if (active) {
+          setCartId(null);
+          setItems(localItems);
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
       }
-    }
-  };
+    };
+
+    loadCart();
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthLoading, supabase, user?.id]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    localStorage.setItem(getCartStorageKey(user?.id ?? null), JSON.stringify(items));
+  }, [isAuthLoading, items, user?.id]);
 
   const addItem = async (item: Omit<CartItem, 'id'>) => {
     if (items.some(i => i.photo_id === item.photo_id)) {
@@ -100,10 +168,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
             .single();
           
           cart = newCart;
-          if (cart) setCartId(cart.id);
         }
 
         if (cart) {
+          setCartId(cart.id);
           await supabase.from('cart_items').insert({
             cart_id: cart.id,
             photo_id: item.photo_id,
@@ -136,7 +204,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setItems([]);
-    localStorage.removeItem('fotoevento_cart');
+    localStorage.removeItem(getCartStorageKey(user?.id ?? null));
+
+    if (user && cartId) {
+      void supabase.from('cart_items').delete().eq('cart_id', cartId);
+    }
   };
 
   const isInCart = (photoId: string) => {

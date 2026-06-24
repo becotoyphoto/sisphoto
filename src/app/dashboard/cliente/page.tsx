@@ -115,6 +115,16 @@ export default function ClientDashboard() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    router.replace('/');
+    router.refresh();
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -144,7 +154,7 @@ export default function ClientDashboard() {
             Buscar fotos
           </Link>
           <button
-            onClick={async () => { await signOut(); router.push('/'); }}
+            onClick={handleLogout}
             className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             Sair
