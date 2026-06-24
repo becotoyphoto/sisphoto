@@ -138,16 +138,17 @@ export default function CartPage() {
     }
   };
 
-  // Polling do status do pedido: checa orders para 'paid' ou 'rejected'
+  // Polling do status do pedido: checa orders para 'paid' ou 'cancelled'
+  // Depende de user porque RLS requer auth.uid() = user_id para ler orders
   useEffect(() => {
-    if (!pixData?.payment_id || phase !== 'waiting') return;
+    if (!pixData?.payment_id || phase !== 'waiting' || !user) return;
 
     let cancelled = false;
 
     const poll = async () => {
       if (cancelled) return;
       const mpId = String(pixData.payment_id);
-      console.log(`[POLL] checking mercadopago_id=${mpId}`);
+      console.log(`[POLL] checking mercadopago_id=${mpId}, user=${user.id}`);
       const { data, error } = await supabase
         .from('orders')
         .select('status')
@@ -172,7 +173,7 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [pixData?.payment_id, phase, supabase]);
+  }, [pixData?.payment_id, phase, supabase, user]);
 
   const handleCopy = async () => {
     if (!pixData?.qr_code) return;
