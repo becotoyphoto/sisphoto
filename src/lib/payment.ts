@@ -50,11 +50,35 @@ export async function processarConfirmacaoPagamento(
     };
   }
 
-  // 2. Só "approved" gera pedido; outros status apenas logam
+  // 2. Só "approved" cria pedido pagos; rejeitados criam registro para rastreio
   if (status !== 'approved') {
+    const mappedStatus = status === 'pending' || status === 'in_process' ? 'pending' : 'rejected';
+
+    // Para rejeições/cancelamentos: cria order para o frontend poder detectar o status
+    if (mappedStatus === 'rejected') {
+      // Resolve userId e cartId antes de criar o registro
+      let rejUserId = userId;
+      let rejCartId = cartId;
+      if (!rejCartId && rejUserId) {
+        const { data: cart } = await supabase.from('carts').select('id').eq('user_id', rejUserId).eq('status', 'active').maybeSingle();
+        rejCartId = cart?.id;
+      } else if (rejCartId && !rejUserId) {
+        const { data: owner } = await supabase.from('carts').select('user_id').eq('id', rejCartId).maybeSingle();
+        rejUserId = owner?.user_id;
+      }
+      if (rejUserId) {
+        await supabase.from('orders').insert({
+          user_id: rejUserId,
+          total_amount: 0,
+          status: 'rejected',
+          mercadopago_id: String(paymentId),
+        });
+      }
+    }
+
     return {
       alreadyProcessed: false,
-      status: status === 'pending' || status === 'in_process' ? 'pending' : 'rejected',
+      status: mappedStatus,
       message: `Pagamento ${paymentId} com status "${status}" — nenhuma ação necessária.`,
     };
   }

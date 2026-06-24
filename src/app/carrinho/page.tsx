@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
+import type { CartItem } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-client';
@@ -18,7 +19,17 @@ interface PixPayment {
   transaction_amount: number | null;
 }
 
+interface PersistedPixState {
+  payment_id: string | number;
+  qr_code_base64: string;
+  qr_code: string;
+  order_number: string;
+  items: CartItem[];
+}
+
 type PaymentPhase = 'idle' | 'creating' | 'waiting' | 'paid' | 'rejected';
+
+const PIX_STORAGE_KEY = 'sisphoto_pix_state';
 
 export default function CartPage() {
   const { items, total, removeItem, clearCart, cartId } = useCart();
@@ -30,15 +41,43 @@ export default function CartPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [phase, setPhase] = useState<PaymentPhase>('idle');
   const [copied, setCopied] = useState(false);
+  const [restoredItems, setRestoredItems] = useState<CartItem[]>([]);
 
-  // Reset quando o carrinho muda
+  // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage
+  const displayItems = items.length > 0 ? items : restoredItems;
+
+  // Restaura estado do pagamento a partir do localStorage (sobrevive reload)
   useEffect(() => {
-    if (items.length === 0) {
+    try {
+      const saved = localStorage.getItem(PIX_STORAGE_KEY);
+      if (!saved) return;
+      const parsed: PersistedPixState = JSON.parse(saved);
+      if (!parsed.payment_id) return;
+
+      setPixData({
+        payment_id: parsed.payment_id,
+        qr_code_base64: parsed.qr_code_base64,
+        qr_code: parsed.qr_code,
+        order_number: parsed.order_number,
+        status: 'pending',
+        transaction_amount: null,
+      });
+      setPhase('waiting');
+      if (parsed.items?.length) {
+        setRestoredItems(parsed.items);
+      }
+    } catch {
+      localStorage.removeItem(PIX_STORAGE_KEY);
+    }
+  }, []);
+
+  // Reset quando o carrinho muda (só se não houver pagamento restaurado)
+  useEffect(() => {
+    if (items.length === 0 && phase === 'idle') {
       setPixData(null);
-      setPhase('idle');
       setPaymentError(null);
     }
-  }, [items.length]);
+  }, [items.length, phase]);
 
   const handlePagarComPix = async () => {
     if (!user) {
@@ -76,6 +115,16 @@ export default function CartPage() {
 
       setPixData(data);
       setPhase('waiting');
+
+      // Persiste no localStorage para sobreviver reload
+      localStorage.setItem(PIX_STORAGE_KEY, JSON.stringify({
+        payment_id: data.payment_id,
+        qr_code_base64: data.qr_code_base64,
+        qr_code: data.qr_code,
+        order_number: data.order_number,
+        items: items,
+      } as PersistedPixState));
+      setRestoredItems(items);
     } catch (error) {
       setPaymentError(
         error instanceof Error ? error.message : 'Não foi possível iniciar o pagamento.'
@@ -84,7 +133,7 @@ export default function CartPage() {
     }
   };
 
-  // Polling do status do pedido: quando approved chega, phase vira "paid"
+  // Polling do status do pedido: checa orders para 'paid' ou 'rejected'
   useEffect(() => {
     if (!pixData?.payment_id || phase !== 'waiting') return;
 
@@ -100,7 +149,11 @@ export default function CartPage() {
 
       if (cancelled) return;
       if (data?.status === 'paid') {
+        localStorage.removeItem(PIX_STORAGE_KEY);
         setPhase('paid');
+      } else if (data?.status === 'rejected') {
+        localStorage.removeItem(PIX_STORAGE_KEY);
+        setPhase('rejected');
       } else {
         setTimeout(poll, 2000);
       }
@@ -126,6 +179,7 @@ export default function CartPage() {
 
   const handleSimularRejeicao = () => {
     // usado em QA: mostra o estado de rejeição imediatamente (teste valida o texto)
+    localStorage.removeItem(PIX_STORAGE_KEY);
     setPhase('rejected');
   };
 
@@ -278,9 +332,9 @@ export default function CartPage() {
                       <Check className="h-4 w-4" />
                       Pagamento confirmado!
                     </div>
-                    {items.map((item) => (
+                    {displayItems.map((item) => (
                       <a
-                        key={item.id}
+                        key={item.photo_id}
                         href="#"
                         onClick={async (e) => {
                           e.preventDefault();
@@ -308,7 +362,7 @@ export default function CartPage() {
                       Pagamento não aprovado. Tente novamente.
                     </div>
                     <button
-                      onClick={handlePagarComPix}
+                      onClick={() => { localStorage.removeItem(PIX_STORAGE_KEY); handlePagarComPix(); }}
                       className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold"
                     >
                       Tentar pagar com Pix novamente
@@ -317,7 +371,7 @@ export default function CartPage() {
                 )}
 
                 <button
-                  onClick={clearCart}
+                  onClick={() => { localStorage.removeItem(PIX_STORAGE_KEY); clearCart(); }}
                   className="w-full mt-3 py-2 text-sm text-muted-foreground hover:text-destructive transition-colors"
                 >
                   Limpar carrinho
