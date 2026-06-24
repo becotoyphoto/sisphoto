@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
@@ -42,14 +42,14 @@ export default function CartPage() {
   const [phase, setPhase] = useState<PaymentPhase>('idle');
   const [copied, setCopied] = useState(false);
   const [restoredItems, setRestoredItems] = useState<CartItem[]>([]);
-  const hasMounted = useRef(false);
+  const [isFirstRender, setIsFirstRender] = useState(true);
 
   // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage
   const displayItems = items.length > 0 ? items : restoredItems;
 
   // Restaura estado do pagamento a partir do localStorage (sobrevive reload)
   useEffect(() => {
-    hasMounted.current = true;
+    setIsFirstRender(false);
     try {
       const saved = localStorage.getItem(PIX_STORAGE_KEY);
       if (!saved) return;
@@ -73,14 +73,14 @@ export default function CartPage() {
     }
   }, []);
 
-  // Reset quando o carrinho muda (não roda no mount para não limpar restauração do localStorage)
+  // Reset quando o carrinho muda (pula primeiro render para não limpar restauração)
   useEffect(() => {
-    if (!hasMounted.current) return;
+    if (isFirstRender) return;
     if (items.length === 0 && phase === 'idle') {
       setPixData(null);
       setPaymentError(null);
     }
-  }, [items.length, phase]);
+  }, [items.length, phase, isFirstRender]);
 
   const handlePagarComPix = async () => {
     if (!user) {
