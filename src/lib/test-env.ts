@@ -1,11 +1,9 @@
+import { getSupabaseUrl } from './supabase-env';
+
 export type MercadoPagoCredentialType = 'TEST' | 'APP_USR' | 'MISSING' | 'OTHER';
 
-function resolveSupabaseUrl(): string {
-  return process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-}
-
 export function isQaEnvironment(): boolean {
-  const supabaseUrl = resolveSupabaseUrl();
+  const supabaseUrl = getSupabaseUrl();
   const qaRef = process.env.SUPABASE_QA_REF ?? 'sfyvyvhuzivpxcyfbbld';
   return supabaseUrl.includes(qaRef);
 }

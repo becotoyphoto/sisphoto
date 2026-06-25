@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/supabase-service';
+import { getSupabaseUrl } from '@/lib/supabase-env';
 
 export async function POST(request: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!getSupabaseUrl()) {
       return NextResponse.json({ error: 'Supabase URL not configured' }, { status: 500 });
     }
 

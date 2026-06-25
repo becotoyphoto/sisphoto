@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { createClient } from '@/lib/supabase-server';
+import { getSupabaseUrl } from '@/lib/supabase-env';
 
 interface PixItem {
   photo_id: string;
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
     // Em QA, SEMPRE retorna mock — mesmo que o token exista — porque o
     // token de produção não funciona no sandbox e o teste valida a lógica
     // de negócio via /api/test/simular-webhook-pagamento.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    const supabaseUrl = getSupabaseUrl();
     const supabaseQaRef = process.env.SUPABASE_QA_REF ?? 'sfyvyvhuzivpxcyfbbld';
     const isQa = supabaseUrl.includes(supabaseQaRef);
 

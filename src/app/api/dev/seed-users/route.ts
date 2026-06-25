@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServiceClient, isServiceRoleConfigured } from '@/lib/supabase-service';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase-env';
 
 const seedUsers = [
   // Admins
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (!getSupabaseUrl() || !getSupabaseAnonKey()) {
       return NextResponse.json({ error: 'Configuração do Supabase incompleta.' }, { status: 500 });
     }
 
@@ -91,8 +92,8 @@ export async function POST(request: Request) {
 
     const supabaseAdmin = createServiceClient();
     const anonClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      getSupabaseUrl(),
+      getSupabaseAnonKey(),
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
