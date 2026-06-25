@@ -69,7 +69,7 @@ test.describe("Páginas públicas", () => {
     { path: "/categorias", desc: "Categorias", mustHave: [/categor/i] },
     { path: "/fotografo", desc: "Para fotógrafos", mustHave: [/fotógraf/i] },
     { path: "/fotografo/cadastro", desc: "Cadastro fotógrafo", mustHave: [/cadastr/i] },
-    { path: "/cadastrar", desc: "Cadastro cliente", mustHave: [/cadastr/i, /conta/i] },
+    { path: "/cadastrar", desc: "Cadastro cliente", mustHave: [/criar conta/i] },
     { path: "/login", desc: "Login", mustHave: [/e-?mail/i, /senha/i] },
     { path: "/sobre", desc: "Sobre", mustHave: [/miss/i] },
     { path: "/termos-de-uso", desc: "Termos de uso", mustHave: [/termos/i] },
@@ -97,9 +97,10 @@ test.describe("Páginas públicas", () => {
       // Espera hidratação com polling em vez de timeout fixo
       await waitForContent(page);
 
-      // Conteúdo esperado
+      // Conteúdo esperado — busca dentro do <main> para evitar falsos positivos no navbar oculto (mobile)
+      const main = page.locator("main").first();
       for (const pattern of p.mustHave) {
-        await expect(page.getByText(pattern).first()).toBeVisible({
+        await expect(main.getByText(pattern).first()).toBeVisible({
           timeout: 8000,
         });
       }
@@ -128,8 +129,9 @@ test.describe("Páginas públicas", () => {
 
   test("Header — carrinho visível", async ({ page }) => {
     await page.goto(BASE);
-    const linkCarrinho = page.locator('a[href="/carrinho"]');
-    await expect(linkCarrinho.first()).toBeVisible();
+    // No mobile o carrinho fica no BottomNavBar; no desktop, no Navbar
+    const linkCarrinho = page.locator('a[href="/carrinho"]:visible').first();
+    await expect(linkCarrinho).toBeVisible({ timeout: 5000 });
   });
 
   test("Footer — CNPJ não é placeholder", async ({ page }) => {
