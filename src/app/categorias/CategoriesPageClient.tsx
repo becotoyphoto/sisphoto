@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 interface Category {
@@ -54,25 +54,12 @@ const categoryOrder = [
   'mountain-bike', 'treinos', 'ginastica', 'hipismo', 'kite-surf', 'trilhas', 'altinha'
 ];
 
-export default function CategoriesPageClient() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface CategoriesPageClientProps {
+  initialCategories?: Category[];
+}
 
-  useEffect(() => {
-    async function loadCategories() {
-      try {
-        const res = await fetch('/api/categories');
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
-        }
-      } catch (err) {
-        console.error('Error loading categories:', err);
-      }
-      setIsLoading(false);
-    }
-    loadCategories();
-  }, []);
+export default function CategoriesPageClient({ initialCategories = [] }: CategoriesPageClientProps) {
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
 
   const getImageUrl = (category: Category): string => {
     if (localImages[category.slug]) {
@@ -90,16 +77,8 @@ export default function CategoriesPageClient() {
     return aIndex - bIndex;
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
+    <main className="max-w-7xl mx-auto px-4 py-12">
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold mb-4">Todas as Categorias</h1>
         <p className="text-muted-foreground text-lg">
@@ -132,6 +111,6 @@ export default function CategoriesPageClient() {
           );
         })}
       </div>
-    </div>
+    </main>
   );
 }

@@ -6,6 +6,7 @@ import { ShoppingCart, Download, Loader2, Camera, ArrowLeft, CheckCircle, Clock,
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatPrice } from '@/lib/utils';
+import RoleGuard from '@/components/RoleGuard';
 
 interface OrderItem {
   id: string;
@@ -42,7 +43,15 @@ const statusLabel: Record<string, { label: string; icon: any; color: string }> =
   cancelled: { label: 'Cancelado', icon: XCircle, color: 'text-red-500' },
 };
 
-export default function ClientDashboard() {
+export default function ClientDashboardPage() {
+  return (
+    <RoleGuard allowedRoles={['client']}>
+      <ClientDashboard />
+    </RoleGuard>
+  );
+}
+
+function ClientDashboard() {
   const router = useRouter();
   const { user, profile, isLoading: authLoading, signOut } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);

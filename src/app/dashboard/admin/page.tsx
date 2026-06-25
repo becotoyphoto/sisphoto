@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Users, Camera, DollarSign, Image as ImageIcon, Clock, CheckCircle, XCircle, Loader2, UserPlus, FolderOpen, ArrowRight, Banknote } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import RoleGuard from '@/components/RoleGuard';
 
 interface AdminStats {
   photographersCount: number;
@@ -15,7 +16,15 @@ interface AdminStats {
   platformCommission: number;
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboardPage() {
+  return (
+    <RoleGuard allowedRoles={['admin']}>
+      <AdminDashboard />
+    </RoleGuard>
+  );
+}
+
+function AdminDashboard() {
   const { user, profile } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentPhotographers, setRecentPhotographers] = useState<any[]>([]);

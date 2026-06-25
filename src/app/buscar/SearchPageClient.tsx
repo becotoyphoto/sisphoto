@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Search, MapPin, Calendar, Filter, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,23 +23,44 @@ interface SearchCategory {
   slug: string;
 }
 
-function SearchContent() {
+interface SearchPageClientProps {
+  initialEvents?: SearchEvent[];
+  initialCategories?: SearchCategory[];
+}
+
+function SearchContent({ initialEvents = [], initialCategories = [] }: SearchPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [events, setEvents] = useState<SearchEvent[]>([]);
-  const [categories, setCategories] = useState<SearchCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<SearchEvent[]>(initialEvents);
+  const [categories, setCategories] = useState<SearchCategory[]>(initialCategories);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
 
+  // Sincroniza estado local com URL apenas no mount
+  const [initialized, setInitialized] = useState(false);
+  const hasFetched = useRef(false);
   useEffect(() => {
     setSearchTerm(searchParams.get('q') || '');
     setCategory(searchParams.get('categoria') || '');
     setCity(searchParams.get('cidade') || '');
-  }, [searchParams]);
+    setInitialized(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Busca dados quando filtros mudam (após inicialização)
   useEffect(() => {
+    if (!initialized) return;
+    // No mount inicial com dados do servidor, não re-fetcha
+    // (mesmo que events esteja vazio, o SSR já retornou o resultado correto)
+    const hasFilters = Boolean(category || city || searchTerm);
+    const isInitialMount = !hasFilters && !hasFetched.current;
+    if (isInitialMount) {
+      hasFetched.current = true;
+      return;
+    }
+    let cancelled = false;
+
     async function loadData() {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -48,10 +69,16 @@ function SearchContent() {
       if (searchTerm) params.set('q', searchTerm);
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const [eventsRes, categoriesRes] = await Promise.all([
-          fetch(`/api/search?${params.toString()}`),
-          fetch('/api/categories')
+          fetch(`/api/search?${params.toString()}`, { signal: controller.signal }),
+          fetch('/api/categories', { signal: controller.signal })
         ]);
+        clearTimeout(timeoutId);
+
+        if (cancelled) return;
 
         if (eventsRes.ok) {
           const eventsData = await eventsRes.json();
@@ -64,13 +91,17 @@ function SearchContent() {
           setCategories(categoriesData);
         }
       } catch (err) {
-        console.error('Error loading search data:', err);
-        setEvents([]);
+        if (!cancelled) {
+          console.error('Error loading search data:', err);
+          setEvents([]);
+        }
       }
-      setIsLoading(false);
+      if (!cancelled) setIsLoading(false);
     }
     loadData();
-  }, [category, city, searchTerm]);
+
+    return () => { cancelled = true; };
+  }, [initialized, category, city, searchTerm]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,7 +194,7 @@ function SearchContent() {
           </form>
         </aside>
 
-        <main className="flex-1">
+        <section className="flex-1">
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-2xl font-bold">Eventos Encontrados</h1>
             <span className="text-muted-foreground text-sm">{events.length} resultados</span>
@@ -228,20 +259,20 @@ function SearchContent() {
               ))}
             </div>
           )}
-        </main>
+        </section>
       </div>
     </div>
   );
 }
 
-export default function SearchPageClient() {
+export default function SearchPageClient({ initialEvents, initialCategories }: SearchPageClientProps) {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>
-      <SearchContent />
+      <SearchContent initialEvents={initialEvents} initialCategories={initialCategories} />
     </Suspense>
   );
 }

@@ -5,6 +5,7 @@ import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, Calendar, MapPin
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatLocalDate } from '@/lib/utils';
+import RoleGuard from '@/components/RoleGuard';
 
 interface PhotographerEvent {
   id: string;
@@ -26,7 +27,15 @@ interface SalesData {
   pendingWithdrawals: number;
 }
 
-export default function PhotographerDashboard() {
+export default function PhotographerDashboardPage() {
+  return (
+    <RoleGuard allowedRoles={['photographer']}>
+      <PhotographerDashboard />
+    </RoleGuard>
+  );
+}
+
+function PhotographerDashboard() {
   const { user, profile } = useAuth();
   const [events, setEvents] = useState<PhotographerEvent[]>([]);
   const [salesData, setSalesData] = useState<SalesData | null>(null);
