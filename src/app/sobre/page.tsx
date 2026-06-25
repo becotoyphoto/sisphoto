@@ -1,4 +1,10 @@
 import { Camera, Users, Target, Shield } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Quem Somos | BecoToy',
+  description: 'Conheça a BecoToy: marketplace que conecta fotógrafos e clientes para compra e venda de fotos de eventos com segurança e qualidade.',
+};
 
 export default function SobrePage() {
   return (
