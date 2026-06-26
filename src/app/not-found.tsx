@@ -20,7 +20,7 @@ export default function NotFound() {
       <div className="mt-10 flex flex-col sm:flex-row gap-4">
         <Link
           href="/"
-          className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-3 rounded-full transition-colors duration-200 shadow-lg shadow-primary/25"
+          className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3 rounded-full transition-colors duration-200 shadow-lg shadow-primary/25"
         >
           <Home className="h-5 w-5" />
           Voltar ao início
@@ -28,7 +28,7 @@ export default function NotFound() {
 
         <Link
           href="/buscar"
-          className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 font-semibold px-8 py-3 rounded-full transition-colors duration-200"
+          className="inline-flex items-center justify-center gap-2 bg-card hover:bg-muted border border-border font-semibold px-8 py-3 rounded-full transition-colors duration-200"
         >
           <Search className="h-5 w-5" />
           Buscar eventos

@@ -191,7 +191,7 @@ function SearchContent({ initialEvents = [], initialCategories = [] }: SearchPag
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-slate-950 text-white border border-white/10 rounded-lg p-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-card text-foreground border border-border rounded-lg p-2 focus:ring-primary focus:outline-none"
               >
                 <option value="">Todas</option>
                 {categories.map((cat) => (
@@ -207,7 +207,7 @@ function SearchContent({ initialEvents = [], initialCategories = [] }: SearchPag
                 placeholder="Ex: São Paulo"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-card border border-border rounded-lg p-2 focus:ring-primary focus:outline-none"
               />
             </div>
 
@@ -217,7 +217,7 @@ function SearchContent({ initialEvents = [], initialCategories = [] }: SearchPag
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 focus:ring-primary focus:outline-none"
+                className="w-full bg-card border border-border rounded-lg p-2 focus:ring-primary focus:outline-none"
               />
             </div>
 
@@ -354,7 +354,7 @@ function SearchContent({ initialEvents = [], initialCategories = [] }: SearchPag
               {filteredAndSortedEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="group bg-card border border-white/10 rounded-2xl overflow-hidden hover:border-primary/50 transition-all"
+                  className="group bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/50 transition-all"
                 >
                   <div className="relative h-48 overflow-hidden">
                     {event.cover_image_url ? (

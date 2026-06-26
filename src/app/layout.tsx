@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -7,8 +6,6 @@ import Footer from "@/components/Footer";
 import BottomNavBar from "@/components/BottomNavBar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
@@ -57,12 +54,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR">
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="preconnect" href="https://trae.ai" />
       </head>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground pb-24 md:pb-0`}>
+      <body className="min-h-screen flex flex-col bg-background text-foreground pb-24 md:pb-0">
         <AuthProvider>
           <CartProvider>
             <Navbar />

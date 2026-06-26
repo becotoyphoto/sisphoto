@@ -25,7 +25,7 @@ export default function ErrorPage({
       </p>
 
       {error.message && (
-        <div className="mt-6 w-full max-w-lg bg-card border border-white/10 rounded-2xl p-4 text-left">
+        <div className="mt-6 w-full max-w-lg bg-card border border-border rounded-2xl p-4 text-left">
           <p className="text-sm text-muted-foreground break-words">
             {error.message}
           </p>
@@ -35,14 +35,14 @@ export default function ErrorPage({
       <div className="mt-10 flex flex-col sm:flex-row gap-4">
         <button
           onClick={reset}
-          className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-3 rounded-full transition-colors duration-200 shadow-lg shadow-primary/25"
+          className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold px-8 py-3 rounded-full transition-colors duration-200 shadow-lg shadow-primary/25"
         >
           Tentar novamente
         </button>
 
         <Link
           href="/"
-          className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 font-semibold px-8 py-3 rounded-full transition-colors duration-200"
+          className="inline-flex items-center justify-center gap-2 bg-card hover:bg-muted border border-border font-semibold px-8 py-3 rounded-full transition-colors duration-200"
         >
           <Home className="h-5 w-5" />
           Voltar ao início

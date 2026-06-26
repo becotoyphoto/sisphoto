@@ -6,50 +6,11 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { Search, Camera, Star, Award, Users, Zap, Shield, CreditCard, Smartphone, TrendingUp, Gift, Trophy, Dumbbell, Bike, Waves, GraduationCap, PartyPopper, Play, Target, Car, Dumbbell as Gym, Wind, Mountain, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { getCategoryImageUrl } from '@/lib/category-images';
 
 const TrustBadges = dynamic(() => import('@/components/TrustBadges'), { ssr: true });
 const FaqSection = dynamic(() => import('@/components/FaqSection'), { ssr: false });
 const TestimonialHighlight = dynamic(() => import('@/components/TestimonialHighlight'), { ssr: true });
-
-const localImages: Record<string, string> = {
-  'futebol': '/images/categorias/futebol.webp',
-  'beach-tennis': '/images/categorias/bechtenis.webp',
-  'ciclismo': '/images/categorias/ciclismo.webp',
-  'formaturas': '/images/categorias/formatura.webp',
-  'futsal': '/images/categorias/futsal.webp',
-  'futevolei': '/images/categorias/futvolei.webp',
-  'jiu-jitsu': '/images/categorias/jui-jutsu.webp',
-  'natacao': '/images/categorias/natação.webp',
-  'automotiva': '/images/categorias/automotivo.webp',
-  'corrida': '/images/categorias/corrida.webp',
-  'grau': '/images/categorias/grau.webp',
-  'motociclismo': '/images/categorias/motocilismo.webp',
-};
-
-const fallbackImages: Record<string, string> = {
-  'eventos': 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=400',
-  'volei': 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&q=80&w=400',
-  'basquete': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=400',
-  'artes-marciais': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=400',
-  'surf': 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&q=80&w=400',
-  'crossfit': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400',
-  'padel': '/images/categorias/padel.png',
-  'teatro': 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&q=80&w=400',
-  'tenis': 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&q=80&w=400',
-  'canoa-havanaina': 'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&q=80&w=400',
-  'festas': 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&q=80&w=400',
-  'mountain-bike': 'https://images.unsplash.com/photo-1544191696-102dbdaeeaa0?auto=format&fit=crop&q=80&w=400',
-  'treinos': 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400',
-  'ginastica': 'https://images.unsplash.com/photo-1534367507873-d2d7e24c797f?auto=format&fit=crop&q=80&w=400',
-  'hipismo': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=400',
-  'kite-surf': 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&q=80&w=400',
-  'trilhas': 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=400',
-  'altinha': 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&q=80&w=400',
-};
-
-const getImageUrl = (slug: string): string => {
-  return localImages[slug] || fallbackImages[slug] || fallbackImages['eventos'];
-};
 
 const categories = [
   { name: 'Futebol', slug: 'futebol', icon: Trophy },
@@ -133,7 +94,7 @@ export default function HomePage() {
                 className="relative min-h-[110px] sm:min-h-[140px] lg:min-h-[170px] overflow-hidden rounded-2xl bg-black/40"
               >
                 <Image
-                  src={getImageUrl(slug)}
+                  src={getCategoryImageUrl(slug)}
                   alt=""
                   fill
                   sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
@@ -204,7 +165,7 @@ export default function HomePage() {
                   className="group relative aspect-square rounded-2xl overflow-hidden ring-1 ring-border hover:ring-2 hover:ring-primary transition-all duration-300"
                 >
                   <Image 
-                    src={getImageUrl(category.slug)}
+                    src={getCategoryImageUrl(category.slug)}
                     alt={category.name}
                     fill
                     sizes="(max-width: 768px) 50vw, 0px"
@@ -232,7 +193,7 @@ export default function HomePage() {
                   className="group relative aspect-square rounded-2xl overflow-hidden ring-1 ring-border hover:ring-2 hover:ring-primary transition-all duration-300"
                 >
                   <Image 
-                    src={getImageUrl(category.slug)}
+                    src={getCategoryImageUrl(category.slug)}
                     alt={category.name}
                     fill
                     sizes="(max-width: 768px) 0px, (max-width: 1024px) 25vw, 16vw"
@@ -369,7 +330,7 @@ export default function HomePage() {
               <Link
                 key={city}
                 href={`/buscar?cidade=${encodeURIComponent(city)}`}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm font-medium transition-all"
+                className="px-4 py-2 bg-muted hover:bg-muted/80 border border-border rounded-full text-sm font-medium transition-all"
               >
                 {city}
               </Link>
