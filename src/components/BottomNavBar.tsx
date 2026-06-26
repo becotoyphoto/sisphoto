@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Search, ShoppingCart, Image as ImageIcon, LogOut, Menu } from 'lucide-react';
+import { Home, Search, ShoppingCart, Image as ImageIcon, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +51,16 @@ export default function BottomNavBar() {
             className="absolute bottom-24 left-4 right-4 rounded-3xl border border-white/10 bg-black/85 p-4 shadow-2xl backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-white">Menu</h3>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
             <div className="space-y-2">
               <Link href="/categorias" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Categorias</Link>
               <Link href="/fotografo" onClick={() => setOpen(false)} className="block rounded-2xl px-4 py-3 font-medium hover:bg-white/10">Sou fotógrafo</Link>
@@ -107,19 +117,22 @@ export default function BottomNavBar() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`relative mx-1 my-2 flex flex-col items-center justify-center gap-1 rounded-[24px] text-[11px] transition-all ${
+                className={`relative mx-1 my-2 flex flex-col items-center justify-center gap-1 text-[11px] transition-all ${
                   isActive
-                    ? 'bg-primary/10 text-primary'
+                    ? 'text-primary'
                     : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className={`relative flex items-center justify-center ${isActive ? 'rounded-xl bg-primary/10 p-1' : ''}`}>
+                  <Icon className="h-5 w-5" />
+                  {showBadge && (
+                    <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white animate-pulse">
+                      {itemCount}
+                    </span>
+                  )}
+                </span>
                 <span>{tab.label}</span>
-                {showBadge && (
-                  <span className="absolute right-1/2 top-1 translate-x-4 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-white">
-                    {itemCount}
-                  </span>
-                )}
+                {isActive && <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-4 rounded-full bg-primary" />}
               </Link>
             );
           })}

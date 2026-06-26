@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ShoppingCart, ArrowLeft, Loader2, Check, Trash2, Percent, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Loader2, Check, Trash2, Percent, X, ChevronLeft, ChevronRight, Share2, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { formatLocalDate, formatPrice } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import ShareButtons from '@/components/ShareButtons';
 
 interface Photo {
   id: string;
@@ -162,19 +163,35 @@ export default function EventPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 w-32 bg-white/5 rounded" />
+          <div className="h-8 w-64 bg-white/5 rounded" />
+          <div className="h-4 w-48 bg-white/5 rounded" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div key={i} className="aspect-square bg-white/5 rounded-xl" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!event) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Evento não encontrado</h1>
-        <Link href="/buscar" className="text-primary hover:underline">
-          Voltar para busca
-        </Link>
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <div className="bg-card border border-white/10 p-8 rounded-2xl">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold mb-2">Evento não encontrado</h1>
+          <p className="text-muted-foreground mb-6">O evento que você procura não existe ou foi removido.</p>
+          <Link href="/buscar" className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            Voltar para busca
+          </Link>
+        </div>
       </div>
     );
   }
@@ -216,18 +233,34 @@ export default function EventPage() {
             Voltar para busca
           </Link>
           <h1 className="text-3xl font-bold">{event.name}</h1>
-          <p className="text-muted-foreground">
-            {formatLocalDate(event.date)} • {event.city}, {event.state}
-          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-muted-foreground">
+            <span className="flex items-center gap-1 text-sm">
+              {formatLocalDate(event.date)}
+            </span>
+            <span className="text-muted-foreground/40">•</span>
+            <span className="text-sm">{event.city}, {event.state}</span>
+            {photos.length > 0 && (
+              <>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="flex items-center gap-1 text-sm">
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  {photos.length} foto{photos.length !== 1 ? 's' : ''}
+                </span>
+              </>
+            )}
+          </div>
         </div>
         
-        {photos.length > 0 && (
-          <div className="flex items-center gap-4 bg-primary/10 border border-primary/20 p-4 rounded-2xl">
-            <p className="text-sm">
-              Preço por foto: <span className="font-bold text-primary">{formatPrice(Number(photos[0].price))}</span>
-            </p>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <ShareButtons eventName={event.name} />
+          {photos.length > 0 && (
+            <div className="flex items-center gap-4 bg-primary/10 border border-primary/20 px-4 py-2.5 rounded-2xl">
+              <p className="text-sm">
+                Preço por foto: <span className="font-bold text-primary">{formatPrice(Number(photos[0].price))}</span>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Discount Banner */}
@@ -298,42 +331,47 @@ export default function EventPage() {
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       ) : (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
         {photos.map((photo) => {
           const inCart = isInCart(photo.id);
           return (
-            <div key={photo.id} className="group relative aspect-square bg-white/5 overflow-hidden cursor-pointer" onClick={() => openViewer(photo)}>
-              {/* Main Image - click to open preview */}
+            <div key={photo.id} className="group relative aspect-square bg-white/5 overflow-hidden rounded-xl cursor-pointer ring-1 ring-white/5 hover:ring-2 hover:ring-primary/50 transition-all duration-300" onClick={() => openViewer(photo)}>
+              {/* Main Image */}
               {photoUrls[photo.id] ? (
                 <img 
                   src={photoUrls[photo.id]} 
                   alt="Foto do evento"
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               ) : (
-                <div 
-                  className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20"
-                />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />
               )}
               
+              {/* Cart indicator (always visible when in cart) */}
+              {inCart && (
+                <div className="absolute top-2 left-2 z-10 bg-green-500 rounded-full p-1">
+                  <Check className="h-3 w-3 text-white" />
+                </div>
+              )}
+
               {/* Hover overlay with actions */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
                 <div className="flex items-center justify-between gap-1 pointer-events-auto">
-                  <p className="text-xs font-bold truncate">R$ {Number(photo.price).toFixed(2)}</p>
+                  <p className="text-xs font-bold text-white truncate">{formatPrice(Number(photo.price))}</p>
                   
                   <div className="flex items-center gap-1">
                     {inCart ? (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleRemoveFromCart(photo.id); }}
                         className="bg-red-500 hover:bg-red-600 p-1.5 rounded-full transition-colors"
-                        title="Remover"
+                        title="Remover do carrinho"
                       >
                         <Check className="h-3 w-3" />
                       </button>
                     ) : (
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleAddToCart(photo); }}
-                        className="bg-primary hover:bg-primary/90 p-1.5 rounded-full transition-colors"
+                        className="bg-primary hover:bg-primary/90 p-1.5 rounded-full transition-colors shadow-lg shadow-primary/30"
                         title="Adicionar ao carrinho"
                       >
                         <ShoppingCart className="h-3 w-3" />
@@ -364,8 +402,12 @@ export default function EventPage() {
       )}
 
       {!photosLoading && photos.length === 0 && (
-        <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
-          <p className="text-muted-foreground">Nenhuma foto disponível para este evento.</p>
+        <div className="text-center py-20 bg-card rounded-2xl border border-white/10">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground font-medium mb-2">Nenhuma foto disponível</p>
+          <p className="text-sm text-muted-foreground/60">As fotos deste evento ainda não foram publicadas.</p>
         </div>
       )}
 
@@ -431,7 +473,7 @@ export default function EventPage() {
           </div>
 
           {/* Bottom Area: Carousel + Actions */}
-          <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-gradient-to-t from-black via-black/90 to-transparent pb-4">
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col bg-gradient-to-t from-black via-black/95 to-transparent pb-4">
             
             {/* Thumbnail Carousel */}
             <div className="w-full overflow-x-auto flex items-center gap-2 px-4 py-2 scrollbar-hide snap-x">
@@ -442,8 +484,8 @@ export default function EventPage() {
                     key={photo.id}
                     ref={isActive ? activeThumbnailRef : null}
                     onClick={() => openViewer(photo)}
-                    className={`relative flex-shrink-0 h-16 w-16 md:h-20 md:w-20 rounded-md overflow-hidden snap-center transition-all ${
-                      isActive ? 'ring-2 ring-primary opacity-100 scale-105' : 'opacity-50 hover:opacity-100'
+                    className={`relative flex-shrink-0 h-14 w-14 md:h-16 md:w-16 rounded-lg overflow-hidden snap-center transition-all ${
+                      isActive ? 'ring-2 ring-primary opacity-100 scale-110' : 'opacity-40 hover:opacity-80'
                     }`}
                   >
                     {photoUrls[photo.id] ? (
@@ -463,7 +505,10 @@ export default function EventPage() {
             {/* Price & Actions */}
             <div className="w-full px-4 py-3 md:py-4">
               <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                <p className="text-xl md:text-2xl font-bold text-white">R$ {Number(selectedPhoto.price).toFixed(2)}</p>
+                <div>
+                  <p className="text-xs text-white/50 mb-0.5">{selectedIndex + 1} de {photos.length}</p>
+                  <p className="text-xl md:text-2xl font-bold text-white">{formatPrice(Number(selectedPhoto.price))}</p>
+                </div>
                 <div className="flex items-center gap-2">
                   {canDeletePhotos && (
                     <button
@@ -482,19 +527,17 @@ export default function EventPage() {
                   {isInCart(selectedPhoto.id) ? (
                     <button
                       onClick={() => handleRemoveFromCart(selectedPhoto.id)}
-                      className="bg-red-500 hover:bg-red-600 px-6 py-3 md:py-3.5 rounded-full font-bold transition-colors text-sm md:text-base"
+                      className="bg-red-500 hover:bg-red-600 px-6 py-3 md:py-3.5 rounded-full font-bold transition-colors text-sm md:text-base flex items-center gap-2"
                     >
-                      <Check className="h-5 w-5 md:h-6 md:w-6 inline mr-2" />
+                      <Check className="h-4 w-4" />
                       Remover
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
-                        handleAddToCart(selectedPhoto);
-                      }}
-                      className="bg-primary hover:bg-primary/90 px-6 py-3 md:py-3.5 rounded-full font-bold transition-colors text-sm md:text-base"
+                      onClick={() => handleAddToCart(selectedPhoto)}
+                      className="bg-primary hover:bg-primary/90 px-6 py-3 md:py-3.5 rounded-full font-bold transition-colors text-sm md:text-base shadow-lg shadow-primary/30 flex items-center gap-2"
                     >
-                      <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 inline mr-2" />
+                      <ShoppingCart className="h-4 w-4" />
                       Adicionar
                     </button>
                   )}

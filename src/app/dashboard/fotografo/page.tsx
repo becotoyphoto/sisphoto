@@ -157,10 +157,10 @@ function PhotographerDashboard() {
   }
 
   const stats = [
-    { label: 'Total Vendido', value: `R$ ${(salesData?.totalSales || 0).toFixed(2)}`, icon: DollarSign, color: 'text-green-500' },
-    { label: 'Ganhos', value: `R$ ${(salesData?.photographerEarnings || 0).toFixed(2)}`, icon: TrendingUp, color: 'text-blue-500' },
-    { label: 'Fotos Vendidas', value: salesData?.totalPhotosSold || 0, icon: ImageIcon, color: 'text-purple-500' },
-    { label: 'Eventos Ativos', value: events.filter(e => e.status === 'published').length, icon: Camera, color: 'text-orange-500' },
+    { label: 'Total Vendido', value: `R$ ${(salesData?.totalSales || 0).toFixed(2)}`, icon: DollarSign, color: 'text-green-500', gradient: 'bg-gradient-to-br from-green-500/5 to-transparent' },
+    { label: 'Ganhos', value: `R$ ${(salesData?.photographerEarnings || 0).toFixed(2)}`, icon: TrendingUp, color: 'text-blue-500', gradient: 'bg-gradient-to-br from-blue-500/5 to-transparent' },
+    { label: 'Fotos Vendidas', value: salesData?.totalPhotosSold || 0, icon: ImageIcon, color: 'text-purple-500', gradient: 'bg-gradient-to-br from-purple-500/5 to-transparent' },
+    { label: 'Eventos Ativos', value: events.filter(e => e.status === 'published').length, icon: Camera, color: 'text-orange-500', gradient: 'bg-gradient-to-br from-orange-500/5 to-transparent' },
   ];
 
   return (
@@ -183,7 +183,7 @@ function PhotographerDashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, i) => (
-          <div key={i} className="bg-card border border-white/10 p-6 rounded-2xl">
+          <div key={i} className={`bg-card border border-white/10 p-6 rounded-2xl ${stat.gradient}`}>
             <div className="flex items-center justify-between mb-4">
               <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
                 <stat.icon className="h-6 w-6" />
@@ -231,9 +231,14 @@ function PhotographerDashboard() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-12 bg-card border border-white/10 rounded-2xl">
-            <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground mb-6">Você ainda não criou nenhum evento.</p>
+          <div className="text-center py-16 bg-card border border-white/10 rounded-2xl">
+            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+              <Camera className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Nenhum evento ainda</h3>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+              Comece criando seu primeiro evento e faça upload das fotos.
+            </p>
             <Link 
               href="/dashboard/fotografo/eventos/novo"
               className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
@@ -243,115 +248,212 @@ function PhotographerDashboard() {
             </Link>
           </div>
         ) : (
-          <div className="bg-card border border-white/10 rounded-2xl overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-6 py-4 font-semibold">Evento</th>
-                  <th className="px-6 py-4 font-semibold">Data</th>
-                  <th className="px-6 py-4 font-semibold">Fotos</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {events.map((event) => (
-                  <tr key={event.id}>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {event.cover_image_url ? (
-                          <img 
-                            src={event.cover_image_url} 
-                            alt={event.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                            <Camera className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium">{event.name}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {event.city}, {event.state}
-                          </p>
-                        </div>
+          <>
+            {/* Mobile card layout */}
+            <div className="sm:hidden space-y-4">
+              {events.map((event) => (
+                <div key={event.id} className="bg-card border border-white/10 rounded-2xl p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {event.cover_image_url ? (
+                      <img 
+                        src={event.cover_image_url} 
+                        alt={event.name}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                        <Camera className="h-6 w-6 text-muted-foreground" />
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {formatLocalDate(event.date)}
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {event.photos?.[0]?.count || 0}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        event.status === 'published' 
-                          ? 'bg-green-500/10 text-green-500' 
-                          : 'bg-yellow-500/10 text-yellow-500'
-                      }`}>
-                        {event.status === 'published' ? 'Publicado' : 'Rascunho'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link 
-                          href={`/dashboard/fotografo/eventos/${event.id}`}
-                          className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                          title="Upload de fotos"
-                        >
-                          <Upload className="h-5 w-5 text-primary" />
-                        </Link>
-                        <Link 
-                          href={`/dashboard/fotografo/eventos/${event.id}/editar`}
-                          className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                          title="Editar"
-                        >
-                          <Edit className="h-5 w-5 text-muted-foreground" />
-                        </Link>
-                        {event.status === 'published' ? (
-                          <Link 
-                            href={`/evento/${event.id}`}
-                            target="_blank"
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                            title="Ver evento"
-                          >
-                            <Eye className="h-5 w-5 text-muted-foreground" />
-                          </Link>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{event.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {event.city}, {event.state}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
+                      event.status === 'published' 
+                        ? 'bg-green-500/10 text-green-500' 
+                        : 'bg-yellow-500/10 text-yellow-500'
+                    }`}>
+                      {event.status === 'published' ? 'Publicado' : 'Rascunho'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
+                    <span>{formatLocalDate(event.date)}</span>
+                    <span>{event.photos?.[0]?.count || 0} fotos</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-3 border-t border-white/10">
+                    {event.status === 'published' && (
+                      <Link 
+                        href={`/evento/${event.id}`}
+                        target="_blank"
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Ver galeria
+                      </Link>
+                    )}
+                    <div className="flex-1" />
+                    <Link 
+                      href={`/dashboard/fotografo/eventos/${event.id}`}
+                      className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                      title="Upload de fotos"
+                    >
+                      <Upload className="h-5 w-5 text-primary" />
+                    </Link>
+                    <Link 
+                      href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                      className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                      title="Editar"
+                    >
+                      <Edit className="h-5 w-5 text-muted-foreground" />
+                    </Link>
+                    {event.status !== 'published' && (
+                      <button
+                        onClick={() => handlePublishEvent(event.id, event.name)}
+                        disabled={actionLoading === event.id}
+                        className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+                        title="Publicar"
+                      >
+                        {actionLoading === event.id ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
                         ) : (
-                          <button
-                            onClick={() => handlePublishEvent(event.id, event.name)}
-                            disabled={actionLoading === event.id}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
-                            title="Publicar"
-                          >
-                            {actionLoading === event.id ? (
-                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          <EyeOff className="h-5 w-5 text-primary" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteEvent(event.id, event.name)}
+                      disabled={actionLoading === event.id}
+                      className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                      title="Excluir evento"
+                    >
+                      {actionLoading === event.id ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+                      ) : (
+                        <Trash2 className="h-5 w-5 text-red-500" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden sm:block bg-card border border-white/10 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left min-w-[640px]">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/5">
+                      <th className="px-6 py-4 font-semibold">Evento</th>
+                      <th className="px-6 py-4 font-semibold">Data</th>
+                      <th className="px-6 py-4 font-semibold">Fotos</th>
+                      <th className="px-6 py-4 font-semibold">Status</th>
+                      <th className="px-6 py-4 font-semibold text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {events.map((event) => (
+                      <tr key={event.id}>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {event.cover_image_url ? (
+                              <img 
+                                src={event.cover_image_url} 
+                                alt={event.name}
+                                className="w-12 h-12 rounded-lg object-cover"
+                              />
                             ) : (
-                              <EyeOff className="h-5 w-5 text-primary" />
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                                <Camera className="h-6 w-6 text-muted-foreground" />
+                              </div>
                             )}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteEvent(event.id, event.name)}
-                          disabled={actionLoading === event.id}
-                          className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
-                          title="Excluir evento"
-                        >
-                          {actionLoading === event.id ? (
-                            <Loader2 className="h-5 w-5 animate-spin text-red-500" />
-                          ) : (
-                            <Trash2 className="h-5 w-5 text-red-500" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                            <div>
+                              <p className="font-medium">{event.name}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {event.city}, {event.state}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-muted-foreground">
+                          {formatLocalDate(event.date)}
+                        </td>
+                        <td className="px-6 py-4 text-muted-foreground">
+                          {event.photos?.[0]?.count || 0}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            event.status === 'published' 
+                              ? 'bg-green-500/10 text-green-500' 
+                              : 'bg-yellow-500/10 text-yellow-500'
+                          }`}>
+                            {event.status === 'published' ? 'Publicado' : 'Rascunho'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link 
+                              href={`/dashboard/fotografo/eventos/${event.id}`}
+                              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                              title="Upload de fotos"
+                            >
+                              <Upload className="h-5 w-5 text-primary" />
+                            </Link>
+                            <Link 
+                              href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Edit className="h-5 w-5 text-muted-foreground" />
+                            </Link>
+                            {event.status === 'published' ? (
+                              <Link 
+                                href={`/evento/${event.id}`}
+                                target="_blank"
+                                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                                title="Ver galeria"
+                              >
+                                <Eye className="h-5 w-5 text-muted-foreground" />
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => handlePublishEvent(event.id, event.name)}
+                                disabled={actionLoading === event.id}
+                                className="p-2 hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
+                                title="Publicar"
+                              >
+                                {actionLoading === event.id ? (
+                                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                                ) : (
+                                  <EyeOff className="h-5 w-5 text-primary" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteEvent(event.id, event.name)}
+                              disabled={actionLoading === event.id}
+                              className="p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                              title="Excluir evento"
+                            >
+                              {actionLoading === event.id ? (
+                                <Loader2 className="h-5 w-5 animate-spin text-red-500" />
+                              ) : (
+                                <Trash2 className="h-5 w-5 text-red-500" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

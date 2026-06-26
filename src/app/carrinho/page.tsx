@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X } from 'lucide-react';
+import { Trash2, Copy, ArrowLeft, ShoppingBag, Loader2, Check, X, Shield, Camera, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/contexts/CartContext';
 import type { CartItem } from '@/contexts/CartContext';
@@ -54,6 +54,13 @@ export default function CartPage() {
   // Itens para exibição: usa items do carrinho se disponíveis, senão restaura do localStorage/banco
   const displayItems = items.length > 0 ? items : restoredItems;
   const displayTotal = displayItems.reduce((acc, item) => acc + item.price, 0);
+
+  // Cálculo de desconto por tier
+  const itemCount = displayItems.length;
+  const discountPercent =
+    itemCount >= 10 ? 20 : itemCount >= 5 ? 10 : itemCount >= 2 ? 5 : 0;
+  const discountAmount = displayTotal * (discountPercent / 100);
+  const finalTotal = displayTotal - discountAmount;
 
   // Restaura estado do pagamento a partir do cookie de sessão (sobrevive reload)
   useEffect(() => {
@@ -283,15 +290,82 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Items List */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Discount Tier Indicator */}
+          {displayItems.length > 0 && phase === 'idle' && (
+            <div className="bg-[#f4f9ff] border border-[#d0e6ff] rounded-2xl p-4">
+              <p className="text-xs font-semibold text-[#2b7cf6] uppercase tracking-wider mb-3">
+                {discountPercent > 0
+                  ? `Você está ganhando ${discountPercent}% de desconto!`
+                  : 'Compre mais para ganhar desconto'}
+              </p>
+              <div className="flex gap-2">
+                {/* 5% tier */}
+                <div className={`flex-1 rounded-xl p-2 text-center transition-all ${
+                  discountPercent >= 5
+                    ? 'bg-[#2b7cf6] text-white shadow-md'
+                    : 'bg-white text-[#2b7cf6] border border-[#d0e6ff]'
+                }`}>
+                  <p className="text-lg font-black leading-none">5%</p>
+                  <p className="text-[9px] font-medium mt-0.5">2+ fotos</p>
+                </div>
+                {/* 10% tier */}
+                <div className={`flex-1 rounded-xl p-2 text-center transition-all ${
+                  discountPercent >= 10
+                    ? 'bg-[#2b7cf6] text-white shadow-md'
+                    : discountPercent >= 5
+                      ? 'bg-[#d0e6ff] text-[#2b7cf6]'
+                      : 'bg-white text-[#2b7cf6] border border-[#d0e6ff]'
+                }`}>
+                  <p className="text-lg font-black leading-none">10%</p>
+                  <p className="text-[9px] font-medium mt-0.5">5+ fotos</p>
+                </div>
+                {/* 20% tier */}
+                <div className={`flex-1 rounded-xl p-2 text-center transition-all ${
+                  discountPercent >= 20
+                    ? 'bg-[#2b7cf6] text-white shadow-md'
+                    : discountPercent >= 10
+                      ? 'bg-[#6daaf8] text-white'
+                      : 'bg-white text-[#2b7cf6] border border-[#d0e6ff]'
+                }`}>
+                  <p className="text-lg font-black leading-none">20%</p>
+                  <p className="text-[9px] font-medium mt-0.5">10+ fotos</p>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="mt-3 h-1.5 bg-[#d0e6ff] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#2b7cf6] rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min((itemCount / 10) * 100, 100)}%`,
+                  }}
+                />
+              </div>
+              <p className="text-[10px] text-[#6faaf8] mt-1.5 text-right">
+                {itemCount} {itemCount === 1 ? 'foto' : 'fotos'} no carrinho
+                {discountPercent < 20 && (
+                  <span className="text-[#9bc4fa]">
+                    {' '}&bull;{' '}
+                    {itemCount < 2
+                      ? `Faltam ${2 - itemCount} para 5%`
+                      : itemCount < 5
+                        ? `Faltam ${5 - itemCount} para 10%`
+                        : `Faltam ${10 - itemCount} para 20%`}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
           {displayItems.length > 0 ? (
             displayItems.map((item) => (
-              <div key={item.id} className="flex items-center gap-4 bg-card border border-white/10 p-4 rounded-2xl">
+              <div key={item.id} className="flex items-center gap-4 bg-card border border-white/10 p-4 rounded-2xl group">
                 <img
                   src={item.image_url || 'https://via.placeholder.com/100'}
                   alt="Item do carrinho"
                   className="w-20 h-20 object-cover rounded-lg"
                 />
                 <div className="flex-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Foto do Evento</p>
                   <h3 className="font-bold text-sm line-clamp-1">{item.event_name}</h3>
                   <p className="text-primary font-bold">R$ {item.price.toFixed(2)}</p>
                 </div>
@@ -300,21 +374,28 @@ export default function CartPage() {
                     onClick={() => removeItem(item.photo_id)}
                     aria-label={`Remover ${item.event_name} do carrinho`}
                     title="Remover do carrinho"
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1.5"
                   >
                     <Trash2 className="h-5 w-5" />
+                    <span className="text-xs text-muted-foreground group-hover:text-destructive transition-colors hidden group-hover:inline">Remover</span>
                   </button>
                 )}
               </div>
             ))
           ) : (
-            <div className="text-center py-12 bg-card border border-white/10 rounded-2xl">
-              <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">Seu carrinho está vazio.</p>
+            <div className="text-center py-16 bg-card border border-white/10 rounded-2xl">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-5">
+                <Camera className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-bold mb-2">Seu carrinho está vazio</h3>
+              <p className="text-muted-foreground text-sm mb-6 max-w-xs mx-auto">
+                Adicione fotos dos eventos que você participou
+              </p>
               <Link
                 href="/buscar"
-                className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
+                className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-8 py-3.5 rounded-full font-semibold text-white transition-colors shadow-lg shadow-primary/25"
               >
+                <Search className="h-4 w-4" />
                 Buscar fotos
               </Link>
             </div>
@@ -333,10 +414,21 @@ export default function CartPage() {
                     <span>Itens ({displayItems.length})</span>
                     <span>R$ {displayTotal.toFixed(2)}</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-green-500 font-medium">
+                      <span>Desconto ({discountPercent}%)</span>
+                      <span>-R$ {discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="border-t border-white/10 pt-4 flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span className="text-primary">R$ {displayTotal.toFixed(2)}</span>
+                    <span className="text-primary">R$ {finalTotal.toFixed(2)}</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <p className="text-xs text-green-500 text-center -mt-2">
+                      Você está economizando R$ {discountAmount.toFixed(2)}!
+                    </p>
+                  )}
                 </div>
 
                 {paymentError && (
@@ -347,12 +439,18 @@ export default function CartPage() {
 
                 {/* Quando ainda não gerou pagamento: mostra o botão Pix */}
                 {phase === 'idle' && (
-                  <button
-                    onClick={handlePagarComPix}
-                    className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors"
-                  >
-                    Pagar com Pix
-                  </button>
+                  <>
+                    <button
+                      onClick={handlePagarComPix}
+                      className="w-full bg-primary hover:bg-primary/90 py-4 rounded-xl font-bold flex items-center justify-center gap-3 transition-colors"
+                    >
+                      Pagar com Pix
+                    </button>
+                    <div className="flex items-center justify-center gap-1.5 mt-3 text-muted-foreground">
+                      <Shield className="h-3.5 w-3.5" />
+                      <span className="text-xs">Pagamento seguro via Pix</span>
+                    </div>
+                  </>
                 )}
 
                 {/* Criando pagamento */}
