@@ -270,7 +270,7 @@ export default function HomePage() {
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-2xl opacity-20" />
               <Image 
-                src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80" 
+                src="/images/categorias/futvolei.webp"
                 alt="Fotógrafo profissional"
                 width={600}
                 height={400}

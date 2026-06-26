@@ -12,15 +12,15 @@ const localCategoryImages: Record<string, string> = {
   grau: '/images/categorias/grau.webp',
   motociclismo: '/images/categorias/motocilismo.webp',
   padel: '/images/categorias/padel.png',
+  crossfit: '/images/categorias/corrida.webp',
+  eventos: '/images/categorias/formatura.webp',
+  basquete: '/images/categorias/futvolei.webp',
 };
 
 const fallbackCategoryImages: Record<string, string> = {
-  eventos: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=400',
   volei: '/images/categorias/futvolei.webp',
-  basquete: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&q=80&w=400',
   'artes-marciais': '/images/categorias/jui-jutsu.webp',
   surf: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&q=80&w=400',
-  crossfit: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400',
   teatro: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&q=80&w=400',
   tenis: '/images/categorias/padel.png',
   'canoa-havanaina': 'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&q=80&w=400',
@@ -75,6 +75,6 @@ export function getCategoryImageUrl(slug: string, imageUrl?: string | null) {
   return (
     localCategoryImages[normalizedSlug] ||
     fallbackCategoryImages[normalizedSlug] ||
-    fallbackCategoryImages.eventos
+    '/images/categorias/formatura.webp'
   );
 }
