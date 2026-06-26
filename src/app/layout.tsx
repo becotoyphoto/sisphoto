@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -57,6 +58,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="dark">
+      <head>
+        <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://trae.ai" />
+      </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground pb-24 md:pb-0`}>
         <AuthProvider>
           <CartProvider>
@@ -68,6 +73,7 @@ export default function RootLayout({
             <BottomNavBar />
           </CartProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

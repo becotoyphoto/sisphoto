@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { Search, Camera, Star, Award, Users, Zap, Shield, CreditCard, Smartphone, TrendingUp, Gift, Trophy, Dumbbell, Bike, Waves, GraduationCap, PartyPopper, Play, Target, Car, Dumbbell as Gym, Wind, Mountain, ArrowRight } from 'lucide-react';
-import TrustBadges from '@/components/TrustBadges';
-import FaqSection from '@/components/FaqSection';
-import TestimonialHighlight from '@/components/TestimonialHighlight';
 import Link from 'next/link';
+
+const TrustBadges = dynamic(() => import('@/components/TrustBadges'), { ssr: true });
+const FaqSection = dynamic(() => import('@/components/FaqSection'), { ssr: false });
+const TestimonialHighlight = dynamic(() => import('@/components/TestimonialHighlight'), { ssr: true });
 
 const localImages: Record<string, string> = {
   'futebol': '/images/categorias/futebol.webp',
@@ -130,10 +132,14 @@ export default function HomePage() {
                 key={`${slug}-${index}`}
                 className="relative min-h-[110px] sm:min-h-[140px] lg:min-h-[170px] overflow-hidden rounded-2xl bg-black/40"
               >
-                <img
+                <Image
                   src={getImageUrl(slug)}
-                  alt={`Foto de evento de ${slug.replace(/-/g, ' ')}`}
-                  className="h-full w-full object-cover"
+                  alt=""
+                  fill
+                  sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
+                  className="object-cover"
+                  loading={index < 3 ? "eager" : "lazy"}
+                  priority={index === 0}
                 />
                 <div className="absolute inset-0 bg-black/35" />
               </div>
@@ -302,10 +308,13 @@ export default function HomePage() {
             
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-3xl blur-2xl opacity-20" />
-              <img 
+              <Image 
                 src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&q=80" 
-                alt="Fotógrafo"
-                className="relative rounded-3xl shadow-2xl"
+                alt="Fotógrafo profissional"
+                width={600}
+                height={400}
+                className="relative rounded-3xl shadow-2xl object-cover"
+                loading="lazy"
               />
             </div>
           </div>
