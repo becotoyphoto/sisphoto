@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Search, Camera, Star, Award, Users, Zap, Shield, CreditCard, Smartphone, TrendingUp, Gift, Trophy, Dumbbell, Bike, Waves, GraduationCap, PartyPopper, Play, Target, Car, Dumbbell as Gym, Wind, Mountain, ArrowRight } from 'lucide-react';
 import TrustBadges from '@/components/TrustBadges';
 import FaqSection from '@/components/FaqSection';
@@ -194,12 +195,14 @@ export default function HomePage() {
                 <Link
                   key={category.slug}
                   href={`/buscar?categoria=${category.slug}`}
-                  className="group relative aspect-square rounded-2xl overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                  className="group relative aspect-square rounded-2xl overflow-hidden ring-1 ring-border hover:ring-2 hover:ring-primary transition-all duration-300"
                 >
-                  <img 
+                  <Image 
                     src={getImageUrl(category.slug)}
                     alt={category.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    fill
+                    sizes="(max-width: 768px) 50vw, 0px"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -220,12 +223,14 @@ export default function HomePage() {
                 <Link
                   key={category.slug}
                   href={`/buscar?categoria=${category.slug}`}
-                  className="group relative aspect-square rounded-2xl overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                  className="group relative aspect-square rounded-2xl overflow-hidden ring-1 ring-border hover:ring-2 hover:ring-primary transition-all duration-300"
                 >
-                  <img 
+                  <Image 
                     src={getImageUrl(category.slug)}
                     alt={category.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    fill
+                    sizes="(max-width: 768px) 0px, (max-width: 1024px) 25vw, 16vw"
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-3">

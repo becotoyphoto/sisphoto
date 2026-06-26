@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, LogOut } from 'lucide-react';
-import { useState } from 'react';
+import { ShoppingCart, User, Menu, LogOut, ChevronDown, Camera, ScanFace, Search } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,19 @@ export default function Navbar() {
   const { user, profile, signOut } = useAuth();
   const { itemCount } = useCart();
   const router = useRouter();
+  const [servicesOpen, setServicesOpen] = useState(false);
+  const servicesRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (servicesRef.current && !servicesRef.current.contains(e.target as Node)) {
+        setServicesOpen(false);
+      }
+    }
+    if (servicesOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [servicesOpen]);
 
   const handleLogout = async () => {
     try {
@@ -43,9 +56,42 @@ export default function Navbar() {
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
               <Link href="/" className="hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Início</Link>
-              <Link href="/buscar" className="hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Buscar fotos</Link>
               <Link href="/categorias" className="hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Categorias</Link>
-              <Link href="/fotografo" className="hover:text-primary px-3 py-2 rounded-md text-sm font-medium">Sou fotógrafo</Link>
+              {/* Services Dropdown */}
+              <div className="relative" ref={servicesRef}>
+                <button
+                  onClick={() => setServicesOpen(!servicesOpen)}
+                  className="flex items-center gap-1 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Serviços
+                  <ChevronDown className={`h-3 w-3 transition-transform ${servicesOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {servicesOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-background border border-border rounded-lg shadow-lg py-2 z-50">
+                    <Link href="/buscar" onClick={() => setServicesOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Buscar fotos</p>
+                        <p className="text-xs text-muted-foreground">Encontre fotos de eventos</p>
+                      </div>
+                    </Link>
+                    <Link href="/buscar?reconhecimento=true" onClick={() => setServicesOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors">
+                      <ScanFace className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Reconhecimento facial</p>
+                        <p className="text-xs text-muted-foreground">Encontre com uma selfie</p>
+                      </div>
+                    </Link>
+                    <Link href="/fotografo" onClick={() => setServicesOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors">
+                      <Camera className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Sou fotógrafo</p>
+                        <p className="text-xs text-muted-foreground">Venda suas fotos</p>
+                      </div>
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
