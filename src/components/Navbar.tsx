@@ -80,12 +80,10 @@ export default function Navbar() {
               </div>
             ) : (
               <>
-                <Link href="/cadastrar" className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                  <User className="h-4 w-4" />
+                <Link href="/cadastrar" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-semibold transition-colors">
                   Criar conta
                 </Link>
-                <Link href="/login" className="flex items-center gap-2 bg-primary hover:bg-primary/90 px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                  <User className="h-4 w-4" />
+                <Link href="/login" className="flex items-center gap-2 text-gray-300 hover:text-white px-3 py-2 text-sm font-medium transition-colors">
                   Entrar
                 </Link>
               </>

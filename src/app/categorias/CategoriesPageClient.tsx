@@ -11,19 +11,19 @@ interface Category {
   image_url: string | null;
 }
 
-const localImages: Record<string, string> = {
-  'futebol': '/images/categorias/futebol.jfif',
-  'beach-tennis': '/images/categorias/bechtenis.jfif',
-  'ciclismo': '/images/categorias/ciclismo.jfif',
-  'formaturas': '/images/categorias/formatura.jpg',
-  'futsal': '/images/categorias/futsal.jfif',
-  'futevolei': '/images/categorias/futvolei.jfif',
-  'jiu-jitsu': '/images/categorias/jui-jutsu.jfif',
-  'natacao': '/images/categorias/natação.jfif',
-  'automotiva': '/images/categorias/automotivo.jfif',
-  'corrida': '/images/categorias/corrida.jpg',
-  'grau': '/images/categorias/grau.jfif',
-  'motociclismo': '/images/categorias/motocilismo.jfif',
+const categoryImages: Record<string, string> = {
+  'futebol': '/images/categorias/futebol.webp',
+  'beach-tennis': '/images/categorias/bechtenis.webp',
+  'ciclismo': '/images/categorias/ciclismo.webp',
+  'formaturas': '/images/categorias/formatura.webp',
+  'futsal': '/images/categorias/futsal.webp',
+  'futevolei': '/images/categorias/futvolei.webp',
+  'jiu-jitsu': '/images/categorias/jui-jutsu.webp',
+  'natacao': '/images/categorias/natação.webp',
+  'automotiva': '/images/categorias/automotivo.webp',
+  'corrida': '/images/categorias/corrida.webp',
+  'grau': '/images/categorias/grau.webp',
+  'motociclismo': '/images/categorias/motocilismo.webp',
 };
 
 const fallbackImages: Record<string, string> = {
@@ -62,8 +62,8 @@ export default function CategoriesPageClient({ initialCategories = [] }: Categor
   const [categories, setCategories] = useState<Category[]>(initialCategories);
 
   const getImageUrl = (category: Category): string => {
-    if (localImages[category.slug]) {
-      return localImages[category.slug];
+    if (categoryImages[category.slug]) {
+      return categoryImages[category.slug];
     }
     return fallbackImages[category.slug] || fallbackImages['eventos'];
   };

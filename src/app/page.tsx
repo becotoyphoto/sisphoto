@@ -3,21 +3,24 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Camera, Star, Award, Users, Zap, Shield, CreditCard, Smartphone, TrendingUp, Gift, Trophy, Dumbbell, Bike, Waves, GraduationCap, PartyPopper, Play, Target, Car, Dumbbell as Gym, Wind, Mountain, ArrowRight } from 'lucide-react';
+import TrustBadges from '@/components/TrustBadges';
+import FaqSection from '@/components/FaqSection';
+import TestimonialHighlight from '@/components/TestimonialHighlight';
 import Link from 'next/link';
 
 const localImages: Record<string, string> = {
-  'futebol': '/images/categorias/futebol.jfif',
-  'beach-tennis': '/images/categorias/bechtenis.jfif',
-  'ciclismo': '/images/categorias/ciclismo.jfif',
-  'formaturas': '/images/categorias/formatura.jpg',
-  'futsal': '/images/categorias/futsal.jfif',
-  'futevolei': '/images/categorias/futvolei.jfif',
-  'jiu-jitsu': '/images/categorias/jui-jutsu.jfif',
-  'natacao': '/images/categorias/natação.jfif',
-  'automotiva': '/images/categorias/automotivo.jfif',
-  'corrida': '/images/categorias/corrida.jpg',
-  'grau': '/images/categorias/grau.jfif',
-  'motociclismo': '/images/categorias/motocilismo.jfif',
+  'futebol': '/images/categorias/futebol.webp',
+  'beach-tennis': '/images/categorias/bechtenis.webp',
+  'ciclismo': '/images/categorias/ciclismo.webp',
+  'formaturas': '/images/categorias/formatura.webp',
+  'futsal': '/images/categorias/futsal.webp',
+  'futevolei': '/images/categorias/futvolei.webp',
+  'jiu-jitsu': '/images/categorias/jui-jutsu.webp',
+  'natacao': '/images/categorias/natação.webp',
+  'automotiva': '/images/categorias/automotivo.webp',
+  'corrida': '/images/categorias/corrida.webp',
+  'grau': '/images/categorias/grau.webp',
+  'motociclismo': '/images/categorias/motocilismo.webp',
 };
 
 const fallbackImages: Record<string, string> = {
@@ -128,7 +131,7 @@ export default function HomePage() {
               >
                 <img
                   src={getImageUrl(slug)}
-                  alt=""
+                  alt={`Foto de evento de ${slug.replace(/-/g, ' ')}`}
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/35" />
@@ -142,13 +145,13 @@ export default function HomePage() {
         <div className="relative max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-white">
-              Encontre suas fotos<br />
+              Reviva cada vitória.<br />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-                de qualquer evento
+                Suas fotos em alta resolução.
               </span>
             </h1>
-            <p className="text-xl text-white/85 mb-8">
-              Milhares de fotos de eventos esportivos e festas em um só lugar
+            <p className="text-xl text-white/80 mb-8">
+              Corrida, futebol, formatura e muito mais — encontre e compre fotos dos seus melhores momentos
             </p>
             
             <form onSubmit={handleSearch} className="max-w-2xl mx-auto relative">
@@ -162,7 +165,7 @@ export default function HomePage() {
               />
               <button 
                 type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary hover:bg-primary/90 px-6 py-2.5 rounded-full font-semibold transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-semibold transition-colors duration-200"
               >
                 Buscar
               </button>
@@ -170,6 +173,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <TrustBadges />
 
       {/* Categories Grid */}
       <section className="py-16 px-4">
@@ -333,72 +338,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Depoimentos */}
-      <section className="py-16 px-4 bg-card">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">O que nossos clientes dizem</h2>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-background p-6 rounded-2xl border border-white/10">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-                ))}
-              </div>
-              <p className="text-muted-foreground mb-4">
-                "Encontrei minhas fotos da corrida em minutos! A qualidade é incrível e o preço é justo."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-sm font-bold">MA</span>
-                </div>
-                <div>
-                  <p className="font-bold text-sm">Maria Alves</p>
-                  <p className="text-xs text-muted-foreground">São Paulo, SP</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background p-6 rounded-2xl border border-white/10">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-                ))}
-              </div>
-              <p className="text-muted-foreground mb-4">
-                "Como fotógrafo, a plataforma me ajudou a aumentar minhas vendas em 300%. Recomendo demais!"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-sm font-bold">JC</span>
-                </div>
-                <div>
-                  <p className="font-bold text-sm">João Carlos</p>
-                  <p className="text-xs text-muted-foreground">Rio de Janeiro, RJ</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-background p-6 rounded-2xl border border-white/10">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-                ))}
-              </div>
-              <p className="text-muted-foreground mb-4">
-                "A função de reconhecimento facial é incrível! Encontrei minha foto em questão de segundos."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-sm font-bold">PS</span>
-                </div>
-                <div>
-                  <p className="font-bold text-sm">Paula Silva</p>
-                  <p className="text-xs text-muted-foreground">Belo Horizonte, MG</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Depoimento destaque */}
+      <TestimonialHighlight
+        quote="A BecoToy transformou meu negócio. Em 3 meses, tripliquei minhas vendas de fotos de corrida. O reconhecimento facial é um diferencial incrível — meus clientes encontram as fotos em segundos."
+        authorName="Ricardo Mendes"
+        authorCity="São Paulo, SP"
+        authorRole="Fotógrafo de corridas"
+      />
 
       {/* Cidades */}
       <section className="py-16 px-4">
@@ -417,6 +363,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <FaqSection />
     </div>
   );
 }
