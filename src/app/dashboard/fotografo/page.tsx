@@ -1,11 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, Calendar, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight, Trash2 } from 'lucide-react';
+import { useState, useEffect, useEffectEvent } from 'react';
+import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatLocalDate } from '@/lib/utils';
 import RoleGuard from '@/components/RoleGuard';
+
+// #region debug-point photographer-dashboard-1
+const DEBUG_SERVER_URL = process.env.NEXT_PUBLIC_DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
+const DEBUG_SESSION_ID = 'photos-not-appearing-dashboard';
+async function debugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: DEBUG_SESSION_ID, event, ...data, timestamp: new Date().toISOString() }),
+    });
+  } catch {}
+}
+// #endregion debug-point photographer-dashboard-1
 
 interface PhotographerEvent {
   id: string;
@@ -39,45 +54,97 @@ function PhotographerDashboard() {
   const { user, profile } = useAuth();
   const [events, setEvents] = useState<PhotographerEvent[]>([]);
   const [salesData, setSalesData] = useState<SalesData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!profile?.is_approved || profile?.role !== 'photographer') {
+  const isApprovedPhotographer = profile?.role === 'photographer' && profile.is_approved;
+  const error = profile && !isApprovedPhotographer
+    ? 'Voce precisa ser um fotografo aprovado para acessar esta pagina.'
+    : null;
+
+  const loadData = useEffectEvent(async () => {
+    if (!isApprovedPhotographer) {
       return;
     }
 
-    async function loadData() {
-      try {
-        const [eventsRes, salesRes] = await Promise.all([
-          fetch('/api/events'),
-          fetch('/api/photographer/sales'),
-        ]);
+    try {
+      setIsLoading(true);
+      // #region debug-point photographer-dashboard-2
+      await debugLog('photographer-dashboard-load-start', {
+        userId: user?.id ?? null,
+        profileRole: profile?.role ?? null,
+        approved: profile?.is_approved ?? null,
+      });
+      // #endregion debug-point photographer-dashboard-2
+      const [eventsRes, salesRes] = await Promise.all([
+        fetch('/api/events'),
+        fetch('/api/photographer/sales'),
+      ]);
 
-        if (eventsRes.ok) {
-          const eventsData = await eventsRes.json();
-          setEvents(eventsData);
-        }
-
-        if (salesRes.ok) {
-          const salesDataResult = await salesRes.json();
-          setSalesData(salesDataResult);
-        }
-      } catch (err) {
-        console.error('Error loading data:', err);
-      } finally {
-        setIsLoading(false);
+      if (eventsRes.ok) {
+        const eventsData = await eventsRes.json();
+        setEvents(eventsData);
+        // #region debug-point photographer-dashboard-3
+        await debugLog('photographer-dashboard-events-result', {
+          userId: user?.id ?? null,
+          count: Array.isArray(eventsData) ? eventsData.length : 0,
+          events: Array.isArray(eventsData)
+            ? eventsData.map((event: PhotographerEvent) => ({
+                id: event.id,
+                name: event.name,
+                photoCount: event.photos?.[0]?.count || 0,
+                status: event.status,
+              }))
+            : [],
+        });
+        // #endregion debug-point photographer-dashboard-3
       }
+
+      if (salesRes.ok) {
+        const salesDataResult = await salesRes.json();
+        setSalesData(salesDataResult);
+      }
+    } catch (err) {
+      console.error('Error loading data:', err);
+    } finally {
+      setIsLoading(false);
     }
-    loadData();
-  }, [profile]);
+  });
 
   useEffect(() => {
-    if (!isLoading && profile && profile.role !== 'photographer') {
-      setError('Você precisa ser um fotógrafo aprovado para acessar esta página.');
+    if (!isApprovedPhotographer) {
+      return;
     }
-  }, [profile, isLoading]);
+
+    let pendingLoadId: number | null = null;
+
+    const queueLoad = () => {
+      if (pendingLoadId !== null) {
+        window.clearTimeout(pendingLoadId);
+      }
+
+      pendingLoadId = window.setTimeout(() => {
+        void loadData();
+      }, 0);
+    };
+
+    queueLoad();
+
+    const handleWindowRefresh = () => {
+      queueLoad();
+    };
+
+    window.addEventListener('focus', handleWindowRefresh);
+    window.addEventListener('pageshow', handleWindowRefresh);
+
+    return () => {
+      if (pendingLoadId !== null) {
+        window.clearTimeout(pendingLoadId);
+      }
+      window.removeEventListener('focus', handleWindowRefresh);
+      window.removeEventListener('pageshow', handleWindowRefresh);
+    };
+  }, [isApprovedPhotographer, profile, user]);
 
   const handleDeleteEvent = async (eventId: string, eventName: string) => {
     const confirmed = window.confirm(`Excluir o evento "${eventName}" e todas as fotos vinculadas?`);
@@ -226,7 +293,7 @@ function PhotographerDashboard() {
           <h2 className="text-xl font-bold">Seus Eventos</h2>
         </div>
         
-        {isLoading ? (
+        {isLoading || (isApprovedPhotographer && !salesData && events.length === 0) ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
@@ -255,11 +322,16 @@ function PhotographerDashboard() {
                 <div key={event.id} className="bg-card border border-white/10 rounded-2xl p-4">
                   <div className="flex items-center gap-3 mb-3">
                     {event.cover_image_url ? (
-                      <img 
-                        src={event.cover_image_url} 
-                        alt={event.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
+                      <div className="relative h-12 w-12 overflow-hidden rounded-lg">
+                        <NextImage
+                          src={event.cover_image_url}
+                          alt={event.name}
+                          fill
+                          sizes="48px"
+                          unoptimized
+                          className="object-cover"
+                        />
+                      </div>
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                         <Camera className="h-6 w-6 text-muted-foreground" />
@@ -360,11 +432,16 @@ function PhotographerDashboard() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             {event.cover_image_url ? (
-                              <img 
-                                src={event.cover_image_url} 
-                                alt={event.name}
-                                className="w-12 h-12 rounded-lg object-cover"
-                              />
+                              <div className="relative h-12 w-12 overflow-hidden rounded-lg">
+                                <NextImage
+                                  src={event.cover_image_url}
+                                  alt={event.name}
+                                  fill
+                                  sizes="48px"
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              </div>
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                                 <Camera className="h-6 w-6 text-muted-foreground" />

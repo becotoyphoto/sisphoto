@@ -1,11 +1,26 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, Check, Loader2, ArrowLeft, Image, Trash2 } from 'lucide-react';
+import { Camera, Upload, X, Check, Loader2, ArrowLeft, Image as ImageIcon, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import NextImage from 'next/image';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { applyWatermarkToCanvas, blobToFile } from '@/lib/watermark';
+
+// #region debug-point upload-page-1
+const DEBUG_SERVER_URL = process.env.NEXT_PUBLIC_DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
+const DEBUG_SESSION_ID = 'photos-not-appearing-dashboard';
+async function debugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: DEBUG_SESSION_ID, event, ...data, timestamp: new Date().toISOString() }),
+    });
+  } catch {}
+}
+// #endregion debug-point upload-page-1
 
 interface PhotoUpload {
   id: string;
@@ -25,9 +40,9 @@ interface ExistingPhoto {
 
 export default function EventUploadPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { user, profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const existingPhotosRef = useRef<HTMLDivElement>(null);
   
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<ExistingPhoto[]>([]);
@@ -36,14 +51,27 @@ export default function EventUploadPage() {
   const [isLoadingExisting, setIsLoadingExisting] = useState(true);
   const [deletingPhotoId, setDeletingPhotoId] = useState<string | null>(null);
   const [ignoredFiles, setIgnoredFiles] = useState<string[]>([]);
-  const [eventOwnerId, setEventOwnerId] = useState<string | null>(null);
+  const [duplicateFiles, setDuplicateFiles] = useState<string[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
+
+  const getFileFingerprint = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
 
   const loadExistingPhotos = useCallback(async () => {
     try {
       setIsLoadingExisting(true);
       const response = await fetch(`/api/photos?eventId=${id}`);
       const data = await response.json();
+
+      // #region debug-point upload-page-2
+      await debugLog('upload-page-load-existing', {
+        eventId: id,
+        ok: response.ok,
+        status: response.status,
+        isArray: Array.isArray(data),
+        count: Array.isArray(data) ? data.length : 0,
+        payload: Array.isArray(data) ? data.map((photo: { id: string }) => photo.id) : data,
+      });
+      // #endregion debug-point upload-page-2
 
       if (!response.ok || !Array.isArray(data)) {
         setExistingPhotos([]);
@@ -84,7 +112,13 @@ export default function EventUploadPage() {
 
   useEffect(() => {
     if (id) {
-      loadExistingPhotos();
+      const timeoutId = window.setTimeout(() => {
+        void loadExistingPhotos();
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     }
   }, [id, loadExistingPhotos]);
 
@@ -97,7 +131,6 @@ export default function EventUploadPage() {
         if (evt && evt.photographer_id !== user.id && profile?.role !== 'admin') {
           setAccessDenied(true);
         }
-        if (evt) setEventOwnerId(evt.photographer_id);
       })
       .catch(() => {});
   }, [id, user, profile]);
@@ -119,22 +152,59 @@ export default function EventUploadPage() {
     
     const newPhotos: PhotoUpload[] = [];
     const invalidFileNames: string[] = [];
+    const duplicateFileNames: string[] = [];
+    const selectedFingerprints = new Set<string>();
     
     for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        invalidFileNames.push(file.name);
+        continue;
+      }
+
+      const fingerprint = getFileFingerprint(file);
+      if (selectedFingerprints.has(fingerprint)) {
+        duplicateFileNames.push(file.name);
+        continue;
+      }
+
+      selectedFingerprints.add(fingerprint);
       if (file.type.startsWith('image/')) {
         const photo = await processFile(file);
         newPhotos.push(photo);
-      } else {
-        invalidFileNames.push(file.name);
       }
     }
     
-    setPhotos(prev => [...prev, ...newPhotos]);
+    const duplicateNamesToShow = [...duplicateFileNames];
+
+    setPhotos(prev => {
+      const existingFingerprints = new Set(prev.map((photo) => getFileFingerprint(photo.originalFile)));
+      const uniqueNewPhotos: PhotoUpload[] = [];
+
+      for (const photo of newPhotos) {
+        const fingerprint = getFileFingerprint(photo.originalFile);
+
+        if (existingFingerprints.has(fingerprint)) {
+          duplicateNamesToShow.push(photo.originalFile.name);
+          URL.revokeObjectURL(photo.preview);
+          continue;
+        }
+
+        existingFingerprints.add(fingerprint);
+        uniqueNewPhotos.push(photo);
+      }
+
+      return [...prev, ...uniqueNewPhotos];
+    });
     
     if (invalidFileNames.length > 0) {
       setIgnoredFiles(invalidFileNames);
       // Auto-hide the message after 5 seconds
       setTimeout(() => setIgnoredFiles([]), 5000);
+    }
+
+    if (duplicateNamesToShow.length > 0) {
+      setDuplicateFiles(Array.from(new Set(duplicateNamesToShow)));
+      setTimeout(() => setDuplicateFiles([]), 5000);
     }
     
     if (fileInputRef.current) {
@@ -157,11 +227,13 @@ export default function EventUploadPage() {
         watermarkFile,
         status: 'pending',
       };
-    } catch (error) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Falha ao processar marca d\'água';
+      console.error('Watermark error:', err);
       return {
         ...photo,
         status: 'error',
-        error: 'Falha ao processar marca d\'água',
+        error: message,
       };
     }
   };
@@ -169,16 +241,28 @@ export default function EventUploadPage() {
   const handleApplyWatermarks = async () => {
     const photosToProcess = photos.filter(p => p.status === 'pending' || p.status === 'error');
 
-    for (const photo of photosToProcess) {
-      setPhotos(prev => prev.map(p => 
-        p.id === photo.id ? { ...p, status: 'processing' } : p
-      ));
+    // Marca as fotos selecionadas como 'processing' de uma só vez para feedback visual
+    setPhotos(prev => prev.map(p => 
+      photosToProcess.some(toProcess => toProcess.id === p.id) 
+        ? { ...p, status: 'processing' } 
+        : p
+    ));
+
+    const CHUNK_SIZE = 3;
+
+    // Processa em lotes (chunks) para evitar sobrecarga de memória (concurrency limit)
+    for (let i = 0; i < photosToProcess.length; i += CHUNK_SIZE) {
+      const chunk = photosToProcess.slice(i, i + CHUNK_SIZE);
+      const chunkResults = await Promise.all(
+        chunk.map(photo => applyWatermarkToPhoto(photo))
+      );
       
-      const processed = await applyWatermarkToPhoto(photo);
-      
-      setPhotos(prev => prev.map(p => 
-        p.id === photo.id ? processed : p
-      ));
+      // Atualiza o estado da UI imediatamente ao final de CADA lote (chunk)
+      // O uso da função (prev => ...) garante que não há sobrescrita de estado entre os lotes
+      setPhotos(prev => prev.map(p => {
+        const updated = chunkResults.find(r => r.id === p.id);
+        return updated || p;
+      }));
     }
   };
 
@@ -231,8 +315,28 @@ export default function EventUploadPage() {
 
       if (!photoRes.ok) {
         const err = await photoRes.json().catch(() => ({}));
+        // #region debug-point upload-page-3
+        await debugLog('upload-page-photo-register-failed', {
+          eventId: id,
+          originalPath,
+          watermarkPath,
+          status: photoRes.status,
+          error: err.error || null,
+        });
+        // #endregion debug-point upload-page-3
         return { success: false, error: err.error || `Falha ao registrar foto (${photoRes.status})` };
       }
+
+      const createdPhoto = await photoRes.json().catch(() => ({}));
+
+      // #region debug-point upload-page-4
+      await debugLog('upload-page-photo-register-success', {
+        eventId: id,
+        originalPath,
+        watermarkPath,
+        photoId: createdPhoto?.id ?? null,
+      });
+      // #endregion debug-point upload-page-4
 
       await loadExistingPhotos();
 
@@ -281,6 +385,25 @@ export default function EventUploadPage() {
     });
   };
 
+  const clearQueuedPhotos = useCallback(() => {
+    setPhotos((prev) => {
+      prev.forEach((photo) => URL.revokeObjectURL(photo.preview));
+      return [];
+    });
+  }, []);
+
+  const handleUploadMore = useCallback(() => {
+    clearQueuedPhotos();
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 0);
+  }, [clearQueuedPhotos]);
+
+  const handleViewUploadedPhotos = useCallback(() => {
+    clearQueuedPhotos();
+    existingPhotosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [clearQueuedPhotos]);
+
   const handleDeleteExistingPhoto = async (photoId: string) => {
     const confirmed = window.confirm('Excluir esta foto do evento?');
 
@@ -313,6 +436,22 @@ export default function EventUploadPage() {
   const readyCount = photos.filter(p => p.status === 'pending' && p.watermarkFile).length;
   const doneCount = photos.filter(p => p.status === 'done').length;
   const allWatermarked = pendingWithoutWatermark === 0 && photos.some(p => p.watermarkFile);
+  const uploadCompletedSuccessfully = photos.length > 0 && photos.every((photo) => photo.status === 'done');
+
+  useEffect(() => {
+    // #region debug-point upload-page-5
+    void debugLog('upload-page-state', {
+      eventId: id,
+      queuedCount: photos.length,
+      existingCount: existingPhotos.length,
+      doneCount,
+      readyCount,
+      pendingWithoutWatermark,
+      isUploading,
+      isLoadingExisting,
+    });
+    // #endregion debug-point upload-page-5
+  }, [doneCount, existingPhotos.length, id, isLoadingExisting, isUploading, pendingWithoutWatermark, photos.length, readyCount]);
 
   if (accessDenied) {
     return (
@@ -404,6 +543,25 @@ export default function EventUploadPage() {
           </div>
         )}
 
+        {duplicateFiles.length > 0 && (
+          <div className="mb-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start justify-between">
+            <div>
+              <p className="text-amber-400 font-medium mb-1">
+                {duplicateFiles.length} arquivo(s) ignorado(s) por já estarem na fila:
+              </p>
+              <p className="text-sm text-amber-300/80">
+                {duplicateFiles.join(', ')}
+              </p>
+            </div>
+            <button
+              onClick={() => setDuplicateFiles([])}
+              className="text-amber-400 hover:text-amber-300 p-1"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+
         {/* Photos Grid */}
         {photos.length > 0 && (
           <div className="mb-8">
@@ -411,10 +569,13 @@ export default function EventUploadPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {photos.map((photo) => (
                 <div key={photo.id} className="relative aspect-square bg-white/5 rounded-xl overflow-hidden">
-                  <img
+                  <NextImage
                     src={photo.preview}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
+                    alt={`Preview de ${photo.originalFile.name}`}
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                    unoptimized
+                    className="object-cover"
                   />
                   
                   {/* Status Overlay */}
@@ -455,7 +616,7 @@ export default function EventUploadPage() {
           </div>
         )}
 
-        <div className="mb-8">
+        <div ref={existingPhotosRef} className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold">Fotos ja enviadas ({existingPhotos.length})</h3>
             {isLoadingExisting && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
@@ -469,10 +630,13 @@ export default function EventUploadPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {existingPhotos.map((photo) => (
                 <div key={photo.id} className="relative aspect-square bg-white/5 rounded-xl overflow-hidden border border-white/10">
-                  <img
+                  <NextImage
                     src={photo.previewUrl}
                     alt="Foto enviada"
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                    unoptimized
+                    className="object-cover"
                   />
                   <button
                     onClick={() => handleDeleteExistingPhoto(photo.id)}
@@ -493,14 +657,14 @@ export default function EventUploadPage() {
         </div>
 
         {/* Actions */}
-        {photos.length > 0 && (
+        {photos.length > 0 && !uploadCompletedSuccessfully && (
           <div className="flex flex-wrap gap-4">
             <button
               onClick={handleApplyWatermarks}
               disabled={pendingWithoutWatermark === 0 || isUploading}
               className="flex items-center gap-2 bg-secondary hover:bg-secondary/90 px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
             >
-              <Image className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
               {allWatermarked ? '✓ Marca d\'Água Aplicada' : `Aplicar Marca d'Água (${pendingWithoutWatermark})`}
             </button>
             
@@ -525,17 +689,30 @@ export default function EventUploadPage() {
         )}
 
         {/* Done Message */}
-        {doneCount > 0 && (
-          <div className="mt-8 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-            <p className="text-green-500 font-medium">
+        {uploadCompletedSuccessfully && (
+          <div className="mt-8 rounded-2xl border border-green-500/20 bg-green-500/10 p-6">
+            <p className="text-lg font-semibold text-green-500">
               {doneCount} foto(s) enviada(s) com sucesso!
             </p>
-            <Link
-              href={`/evento/${id}`}
-              className="text-sm text-primary hover:underline mt-2 inline-block"
-            >
-              Ver evento publicado
-            </Link>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Escolha o proximo passo para continuar no mesmo album ou revisar as fotos ja carregadas.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={handleUploadMore}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Upload className="h-4 w-4" />
+                Carregar mais fotos
+              </button>
+              <button
+                onClick={handleViewUploadedPhotos}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 font-medium transition-colors hover:bg-white/10"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Ver fotos carregadas
+              </button>
+            </div>
           </div>
         )}
 
