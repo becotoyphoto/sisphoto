@@ -35,18 +35,30 @@ export async function applyWatermarkToCanvas(
           return;
         }
 
-        canvas.width = img.width;
-        canvas.height = img.height;
+        // Escala a imagem da marca d'água para evitar arquivos gigantes (Vercel 4.5MB limit e lentidão)
+        const MAX_DIMENSION = 1920;
+        let drawWidth = img.width;
+        let drawHeight = img.height;
+        
+        if (drawWidth > MAX_DIMENSION || drawHeight > MAX_DIMENSION) {
+          const ratio = Math.min(MAX_DIMENSION / drawWidth, MAX_DIMENSION / drawHeight);
+          drawWidth = Math.floor(drawWidth * ratio);
+          drawHeight = Math.floor(drawHeight * ratio);
+        }
 
-        ctx.drawImage(img, 0, 0);
+        canvas.width = drawWidth;
+        canvas.height = drawHeight;
+
+        ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
 
         ctx.globalAlpha = opacity;
         ctx.fillStyle = `rgb(${color})`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        const fontPx = Math.max(38, Math.floor(Math.max(fontSize, img.width / 40)));
-        const smallFontPx = Math.max(16, Math.floor(fontPx * 0.42));
+        // Ajusta a fonte baseado no novo tamanho
+        const fontPx = Math.max(24, Math.floor(Math.max(fontSize, drawWidth / 40)));
+        const smallFontPx = Math.max(12, Math.floor(fontPx * 0.42));
         const tile = Math.max(
           Math.floor(fontPx * 4.8),
           Math.floor(Math.min(canvas.width, canvas.height) / 2.6)
@@ -134,6 +146,13 @@ export async function applyWatermarkToCanvas(
 
         canvas.toBlob(
           (blob) => {
+            // Limpeza explícita de memória para evitar vazamentos em lotes grandes
+            img.src = '';
+            img.onload = null;
+            img.onerror = null;
+            canvas.width = 0;
+            canvas.height = 0;
+            
             if (blob) {
               resolve(blob);
             } else {
@@ -141,7 +160,7 @@ export async function applyWatermarkToCanvas(
             }
           },
           'image/jpeg',
-          0.92
+          0.85 // Reduzido de 0.92 para 0.85 para manter payload da marca d'água ainda menor
         );
       };
       
