@@ -7,7 +7,7 @@ import NextImage from 'next/image';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { applyWatermarkToCanvas, blobToFile } from '@/lib/watermark';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-client';
 
 // #region debug-point upload-page-1
 const DEBUG_SERVER_URL = process.env.NEXT_PUBLIC_DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
@@ -276,6 +276,8 @@ export default function EventUploadPage() {
       
       const originalPath = `${id}/${baseFileName}`;
       const watermarkPath = `${id}/${baseFileName}`;
+
+      const supabase = createClient();
 
       const { error: originalError } = await supabase.storage
         .from('originals')
