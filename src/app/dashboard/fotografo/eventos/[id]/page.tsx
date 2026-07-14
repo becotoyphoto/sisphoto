@@ -7,6 +7,7 @@ import NextImage from 'next/image';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { applyWatermarkToCanvas, blobToFile } from '@/lib/watermark';
+import { supabase } from '@/lib/supabase';
 
 // #region debug-point upload-page-1
 const DEBUG_SERVER_URL = process.env.NEXT_PUBLIC_DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
@@ -270,37 +271,33 @@ export default function EventUploadPage() {
     if (!photo.watermarkFile) return { success: false, error: 'Marca d\'água não aplicada' };
 
     try {
-      const formDataOriginal = new FormData();
-      formDataOriginal.append('file', photo.originalFile);
-      formDataOriginal.append('eventId', id as string);
-      formDataOriginal.append('type', 'original');
+      const ext = photo.originalFile.type.split('/')[1].replace('jpeg', 'jpg');
+      const baseFileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+      
+      const originalPath = `${id}/${baseFileName}`;
+      const watermarkPath = `${id}/${baseFileName}`;
 
-      const resOriginal = await fetch('/api/upload', {
-        method: 'POST',
-        body: formDataOriginal,
-      });
+      const { error: originalError } = await supabase.storage
+        .from('originals')
+        .upload(originalPath, photo.originalFile, {
+          contentType: photo.originalFile.type,
+          upsert: false,
+        });
 
-      if (!resOriginal.ok) {
-        const err = await resOriginal.json().catch(() => ({}));
-        return { success: false, error: err.error || `Falha no upload original (${resOriginal.status})` };
+      if (originalError) {
+        return { success: false, error: originalError.message || `Falha no upload original` };
       }
-      const { path: originalPath } = await resOriginal.json();
 
-      const formDataWatermark = new FormData();
-      formDataWatermark.append('file', photo.watermarkFile);
-      formDataWatermark.append('eventId', id as string);
-      formDataWatermark.append('type', 'watermark');
+      const { error: watermarkError } = await supabase.storage
+        .from('photos')
+        .upload(watermarkPath, photo.watermarkFile, {
+          contentType: photo.watermarkFile.type,
+          upsert: false,
+        });
 
-      const resWatermark = await fetch('/api/upload', {
-        method: 'POST',
-        body: formDataWatermark,
-      });
-
-      if (!resWatermark.ok) {
-        const err = await resWatermark.json().catch(() => ({}));
-        return { success: false, error: err.error || `Falha no upload com marca d'água (${resWatermark.status})` };
+      if (watermarkError) {
+        return { success: false, error: watermarkError.message || `Falha no upload com marca d'água` };
       }
-      const { path: watermarkPath } = await resWatermark.json();
 
       const photoRes = await fetch('/api/photos', {
         method: 'POST',
