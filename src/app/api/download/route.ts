@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
+import { getSignedUrl } from '@/lib/storage';
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,6 @@ export async function POST(request: Request) {
     }
 
     // Check ownership: user must have a paid order with this photo
-    // First try via the authenticated client (most reliable)
     const { data: orderItems, error: orderError } = await supabase
       .from('order_items')
       .select('photo_id, order:orders!inner(user_id, status)')
@@ -48,18 +48,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Foto não encontrada' }, { status: 404 });
     }
 
-    // Generate signed URL for the original (1 hour expiry)
-    const { data: signedData, error: signedError } = await service
-      .storage
-      .from('originals')
-      .createSignedUrl(photo.storage_path_original, 3600);
+    // Generate signed URL for the original via storage abstraction
+    const { url, error: signedError } = await getSignedUrl('originals', photo.storage_path_original, 3600);
 
-    if (signedError || !signedData) {
+    if (signedError || !url) {
       console.error('Error creating signed URL:', signedError);
       return NextResponse.json({ error: 'Erro ao gerar link de download' }, { status: 500 });
     }
 
-    return NextResponse.json({ url: signedData.signedUrl });
+    return NextResponse.json({ url });
   } catch (error) {
     console.error('Error in download API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

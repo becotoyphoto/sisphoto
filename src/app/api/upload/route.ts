@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
+import { upload } from '@/lib/storage';
 
 // #region debug-point upload-1
 const DEBUG_SERVER_URL = process.env.DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
@@ -83,12 +84,18 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const { data, error } = await service.storage
-      .from(bucket)
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+    const { path: uploadedPath, primaryError, secondaryError } = await upload(bucket, fileName, buffer, {
+      contentType: file.type,
+    });
+
+    if (primaryError) {
+      console.error('Upload error:', primaryError);
+      return NextResponse.json({ error: primaryError }, { status: 500 });
+    }
+
+    if (secondaryError) {
+      console.warn(`[upload] Secondary storage mirror failed: ${secondaryError}`);
+    }
 
     // #region debug-point upload-2
     await debugLog('upload-storage-result', {
@@ -97,18 +104,22 @@ export async function POST(request: Request) {
       type,
       bucket,
       fileName,
-      success: !error,
-      error: error?.message,
-      path: data?.path,
+      success: !primaryError,
+      error: primaryError || secondaryError,
+      path: uploadedPath,
     });
     // #endregion debug-point upload-2
 
-    if (error) {
-      console.error('Upload error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (primaryError) {
+      console.error('Upload error:', primaryError);
+      return NextResponse.json({ error: primaryError }, { status: 500 });
     }
 
-    return NextResponse.json({ path: data.path });
+    if (secondaryError) {
+      console.warn(`[upload] Secondary storage mirror failed: ${secondaryError}`);
+    }
+
+    return NextResponse.json({ path: uploadedPath });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

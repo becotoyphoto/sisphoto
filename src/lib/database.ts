@@ -1,4 +1,5 @@
 import { createClient } from './supabase-client';
+import { getSignedUrl } from '@/lib/storage';
 
 const supabase = createClient();
 
@@ -140,17 +141,14 @@ export async function getPhotoUrl(storagePath: string, withWatermark: boolean = 
 
   const bucket = withWatermark ? 'photos' : 'originals';
   
-  const { data, error } = await supabase
-    .storage
-    .from(bucket)
-    .createSignedUrl(storagePath, 3600);
+  const { url, error } = await getSignedUrl(bucket, storagePath, 3600);
 
-  if (error) {
+  if (error || !url) {
     console.error('Error getting signed URL:', error);
     return storagePath;
   }
 
-  return data.signedUrl;
+  return url;
 }
 
 export async function getFeaturedEvents(limit: number = 6): Promise<Event[]> {

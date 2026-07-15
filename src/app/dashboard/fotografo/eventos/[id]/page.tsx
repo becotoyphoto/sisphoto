@@ -221,8 +221,8 @@ export default function EventUploadPage() {
     try {
       const watermarkBlob = await applyWatermarkToCanvas(photo.originalFile, {
         text: 'BecoToy.com',
-        opacity: 0.26,
-        fontSize: 48,
+        opacity: 0.45,
+        fontSize: 64,
       });
 
       const watermarkFile = blobToFile(watermarkBlob, photo.originalFile.name);
@@ -304,6 +304,24 @@ export default function EventUploadPage() {
       if (watermarkError) {
         return { success: false, error: watermarkError.message || `Falha no upload com marca d'água` };
       }
+
+      // Mirror both files to secondary storage (non-blocking)
+      fetch('/api/storage/mirror', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bucket: 'originals',
+          paths: [{ path: originalPath, contentType: photo.originalFile.type }],
+        }),
+      }).catch((e) => console.warn('[upload] Mirror original failed:', e));
+      fetch('/api/storage/mirror', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bucket: 'photos',
+          paths: [{ path: watermarkPath, contentType: photo.watermarkFile.type }],
+        }),
+      }).catch((e) => console.warn('[upload] Mirror watermark failed:', e));
 
       const photoRes = await fetch('/api/photos', {
         method: 'POST',

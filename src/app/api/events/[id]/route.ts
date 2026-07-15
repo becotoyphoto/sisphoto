@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
+import { getSignedUrl, remove } from '@/lib/storage';
 
 async function getActorRole(userId: string) {
   const service = createServiceClient();
@@ -127,10 +128,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       (photos || []).map(async (photo) => {
         let url = '';
         if (photo.storage_path_watermark) {
-          const { data: signed } = await service.storage
-            .from('photos')
-            .createSignedUrl(photo.storage_path_watermark, 3600);
-          url = signed?.signedUrl || '';
+          const { url: signedUrl } = await getSignedUrl('photos', photo.storage_path_watermark, 3600);
+          url = signedUrl || '';
         }
         return { id: photo.id, url, price: photo.price };
       })
@@ -289,11 +288,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         .filter(Boolean);
 
       if (originalPaths.length > 0) {
-        await service.storage.from('originals').remove(originalPaths);
+        await remove('originals', originalPaths);
       }
 
       if (watermarkPaths.length > 0) {
-        await service.storage.from('photos').remove(watermarkPaths);
+        await remove('photos', watermarkPaths);
       }
     }
 

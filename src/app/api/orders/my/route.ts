@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
+import { getSignedUrl } from '@/lib/storage';
 
 export async function GET() {
   try {
@@ -53,11 +54,8 @@ export async function GET() {
       // Get signed URL for thumbnail
       let thumbnailUrl: string | null = null;
       if (photo.storage_path_watermark) {
-        const { data: signed } = await service
-          .storage
-          .from('photos')
-          .createSignedUrl(photo.storage_path_watermark, 3600);
-        thumbnailUrl = signed?.signedUrl || null;
+        const { url } = await getSignedUrl('photos', photo.storage_path_watermark, 3600);
+        thumbnailUrl = url || null;
       }
       photoMap[photo.id] = { ...photo, thumbnail_url: thumbnailUrl };
     }

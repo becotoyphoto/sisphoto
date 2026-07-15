@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, getAuthenticatedUser } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
+import { remove } from '@/lib/storage';
 
 // #region debug-point photos-1
 const DEBUG_SERVER_URL = process.env.DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
@@ -241,11 +242,11 @@ export async function DELETE(request: Request) {
     const pathsToRemove = [photo.storage_path_original, photo.storage_path_watermark].filter(Boolean);
 
     if (photo.storage_path_original) {
-      await serviceSupabase.storage.from('originals').remove([photo.storage_path_original]);
+      await remove('originals', [photo.storage_path_original]);
     }
 
     if (photo.storage_path_watermark) {
-      await serviceSupabase.storage.from('photos').remove([photo.storage_path_watermark]);
+      await remove('photos', [photo.storage_path_watermark]);
     }
 
     return NextResponse.json({ success: true, removed: pathsToRemove.length });
