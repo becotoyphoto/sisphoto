@@ -5,8 +5,8 @@ import { createR2Storage } from '@/lib/storage/r2-adapter';
 /**
  * API to copy all existing files from Supabase to R2.
  * Meant to be called once as a migration script.
- * GET /api/storage/migrate - dry run (shows what would be copied)
- * POST /api/storage/migrate - executes the migration
+ * GET /api/r2/migrate - dry run (shows what would be copied)
+ * POST /api/r2/migrate - executes the migration
  */
 export async function GET() {
   try {

@@ -306,7 +306,7 @@ export default function EventUploadPage() {
       }
 
       // Mirror both files to secondary storage (non-blocking)
-      fetch('/api/storage/mirror', {
+      fetch('/api/r2/mirror', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -314,7 +314,7 @@ export default function EventUploadPage() {
           paths: [{ path: originalPath, contentType: photo.originalFile.type }],
         }),
       }).catch((e) => console.warn('[upload] Mirror original failed:', e));
-      fetch('/api/storage/mirror', {
+      fetch('/api/r2/mirror', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
