@@ -12,8 +12,8 @@ export async function applyWatermarkToCanvas(
 ): Promise<Blob> {
   const {
     text = 'BecoToy.com',
-    opacity = 0.26,
-    fontSize = 60,
+    opacity = 0.45,
+    fontSize = 64,
     color = '255, 255, 255',
     diagonal = true,
   } = options;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, MapPin, Calendar, Loader2, ArrowLeft, Save, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
@@ -38,6 +38,9 @@ export default function EditEventPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [nameCheck, setNameCheck] = useState<'idle' | 'checking' | 'duplicate' | 'available'>('idle');
+  const nameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialNameRef = useRef('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -66,6 +69,7 @@ export default function EditEventPage() {
         if (evtRes.ok) {
           const evt = await evtRes.json();
           const firstPhotoPrice = evt.photos?.[0]?.price;
+          initialNameRef.current = evt.name || '';
           setFormData({
             name: evt.name || '',
             description: evt.description || '',
@@ -134,9 +138,45 @@ export default function EditEventPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showPhotoPicker]);
 
+  const checkDuplicateName = useCallback(async (nameToCheck: string) => {
+    if (nameToCheck.trim().length < 2) {
+      setNameCheck('idle');
+      return;
+    }
+    if (nameToCheck.trim().toLowerCase() === initialNameRef.current.trim().toLowerCase()) {
+      setNameCheck('idle');
+      return;
+    }
+    setNameCheck('checking');
+    try {
+      const res = await fetch(`/api/events?search=${encodeURIComponent(nameToCheck.trim())}`);
+      if (res.ok) {
+        const events = await res.json();
+        const duplicate = events.find((ev: { name: string }) =>
+          ev.name.trim().toLowerCase() === nameToCheck.trim().toLowerCase()
+        );
+        setNameCheck(duplicate ? 'duplicate' : 'available');
+      } else {
+        setNameCheck('idle');
+      }
+    } catch {
+      setNameCheck('idle');
+    }
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (name === 'name') {
+      if (nameCheckTimer.current) clearTimeout(nameCheckTimer.current);
+      if (value.trim().length < 2) {
+        setNameCheck('idle');
+      } else {
+        setNameCheck('checking');
+        nameCheckTimer.current = setTimeout(() => checkDuplicateName(value), 500);
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,8 +257,23 @@ export default function EditEventPage() {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+              className={`w-full bg-white/5 border rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none ${
+                nameCheck === 'duplicate' ? 'border-red-500' : 'border-white/10'
+              }`}
             />
+            {nameCheck === 'checking' && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Verificando nome...
+              </p>
+            )}
+            {nameCheck === 'duplicate' && (
+              <p className="text-xs text-red-400 mt-1">
+                Ja existe um evento com esse nome. Escolha outro nome.
+              </p>
+            )}
+            {nameCheck === 'available' && (
+              <p className="text-xs text-green-400 mt-1">Nome disponivel</p>
+            )}
           </div>
 
           <div>
@@ -297,7 +352,7 @@ export default function EditEventPage() {
           </div>
 
           {/* Cover Image Picker */}
-          <div>
+          <div id="cover">
             <label className="block text-sm font-medium mb-2">Imagem de Capa</label>
             <div className="flex gap-2">
               <input
@@ -382,7 +437,7 @@ export default function EditEventPage() {
             </p>
           </div>
 
-          <div>
+          <div id="price">
             <label className="block text-sm font-medium mb-2">Preço por foto (R$)</label>
             <input
               type="number"
@@ -408,7 +463,7 @@ export default function EditEventPage() {
             </button>
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || nameCheck === 'duplicate'}
               className="flex-1 py-3 rounded-xl bg-primary hover:bg-primary/90 font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               {isSaving ? (

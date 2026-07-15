@@ -36,6 +36,7 @@ export default function AdminEventsPage() {
   const router = useRouter();
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -44,6 +45,7 @@ export default function AdminEventsPage() {
 
   const loadEvents = async () => {
     try {
+      setLoadError(null);
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (statusFilter) params.set('status', statusFilter);
@@ -55,9 +57,12 @@ export default function AdminEventsPage() {
         setEvents(data);
       } else if (response.status === 401) {
         router.push('/login');
+      } else {
+        setLoadError('Nao foi possivel carregar os eventos. Tente novamente.');
       }
     } catch (error) {
       console.error('Error loading admin events:', error);
+      setLoadError('Erro de conexao. Verifique sua internet e tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -143,6 +148,29 @@ export default function AdminEventsPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError && events.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <Link href="/dashboard/admin" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
+          <ArrowLeft className="h-4 w-4" /> Voltar para dashboard
+        </Link>
+        <div className="text-center py-16 bg-card border border-white/10 rounded-2xl">
+          <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+            <AlertTriangle className="h-10 w-10 text-red-400" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Erro ao carregar</h3>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">{loadError}</p>
+          <button
+            onClick={() => { setIsLoading(true); loadEvents(); }}
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
   }

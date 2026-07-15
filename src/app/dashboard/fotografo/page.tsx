@@ -71,6 +71,7 @@ function PhotographerDashboard() {
   const [events, setEvents] = useState<PhotographerEvent[]>([]);
   const [salesData, setSalesData] = useState<SalesData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const isApprovedPhotographer = profile?.role === 'photographer' && profile.is_approved;
@@ -85,6 +86,7 @@ function PhotographerDashboard() {
 
     try {
       setIsLoading(true);
+      setLoadError(null);
       // #region debug-point photographer-dashboard-2
       await debugLog('photographer-dashboard-load-start', {
         userId: user?.id ?? null,
@@ -114,6 +116,8 @@ function PhotographerDashboard() {
             : [],
         });
         // #endregion debug-point photographer-dashboard-3
+      } else {
+        setLoadError('Nao foi possivel carregar seus eventos. Tente novamente.');
       }
 
       if (salesRes.ok) {
@@ -122,6 +126,7 @@ function PhotographerDashboard() {
       }
     } catch (err) {
       console.error('Error loading data:', err);
+      setLoadError('Erro de conexao. Verifique sua internet e tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -309,9 +314,23 @@ function PhotographerDashboard() {
           <h2 className="text-xl font-bold">Seus Eventos</h2>
         </div>
         
-        {isLoading || (isApprovedPhotographer && !salesData && events.length === 0) ? (
+        {isLoading || (isApprovedPhotographer && !salesData && events.length === 0 && !loadError) ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-16 bg-card border border-white/10 rounded-2xl">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="h-10 w-10 text-red-400" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Erro ao carregar</h3>
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto">{loadError}</p>
+            <button
+              onClick={() => void loadData()}
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 px-6 py-3 rounded-full font-medium transition-colors"
+            >
+              Tentar novamente
+            </button>
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-16 bg-card border border-white/10 rounded-2xl">
@@ -399,14 +418,14 @@ function PhotographerDashboard() {
                       <Upload className="h-5 w-5 text-primary" />
                     </Link>
                     <Link 
-                      href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                      href={`/dashboard/fotografo/eventos/${event.id}/editar#cover`}
                       className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                       title="Editar Capa"
                     >
                       <ImageIcon className="h-5 w-5 text-muted-foreground" />
                     </Link>
                     <Link 
-                      href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                      href={`/dashboard/fotografo/eventos/${event.id}/editar#price`}
                       className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                       title="Editar Preço"
                     >
@@ -519,14 +538,14 @@ function PhotographerDashboard() {
                               <Upload className="h-5 w-5 text-primary" />
                             </Link>
                             <Link 
-                              href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                              href={`/dashboard/fotografo/eventos/${event.id}/editar#cover`}
                               className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                               title="Editar Capa"
                             >
                               <ImageIcon className="h-5 w-5 text-muted-foreground" />
                             </Link>
                             <Link 
-                              href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                              href={`/dashboard/fotografo/eventos/${event.id}/editar#price`}
                               className="p-2 hover:bg-white/5 rounded-lg transition-colors"
                               title="Editar Preço"
                             >
