@@ -157,13 +157,42 @@ export async function processarConfirmacaoPagamento(
     };
   }
 
-  // 6. Cria os order_items
+  // 6. Cria os order_items e coleta dados para email
+  const photoIds = cartItems.map((i) => i.photo_id);
+  let eventName = 'Evento';
+  let photographerEmail = '';
+
   for (const item of cartItems) {
     await supabase.from('order_items').insert({
       order_id: order.id,
       photo_id: item.photo_id,
       price_at_purchase: item.price,
     });
+  }
+
+  // 6.1 Busca dados para emails
+  if (photoIds.length > 0) {
+    const { data: photos } = await supabase
+      .from('photos')
+      .select('event_id')
+      .in('id', photoIds)
+      .limit(1);
+    if (photos && photos.length > 0) {
+      const { data: event } = await supabase
+        .from('events')
+        .select('name, photographer_id')
+        .eq('id', photos[0].event_id)
+        .single();
+      if (event) {
+        eventName = event.name;
+        const { data: photographer } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', event.photographer_id)
+          .single();
+        photographerEmail = photographer?.email || '';
+      }
+    }
   }
 
   // 7. Marca o carrinho como convertido
@@ -173,6 +202,44 @@ export async function processarConfirmacaoPagamento(
       .update({ status: 'converted' })
       .eq('id', targetCartId);
   }
+
+  // 8. Envia emails de notificação (assíncrono, não bloqueia)
+  ;(async () => {
+    try {
+      const { sendPurchaseConfirmation, sendNewSaleNotification } = await import('@/lib/email');
+
+      // Email para o comprador
+      const { data: buyerProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', targetUserId)
+        .single();
+
+      const { data: buyerAuth } = await supabase.auth.admin.getUserById(targetUserId);
+      const buyerEmail = buyerAuth?.user?.email;
+
+      if (buyerEmail) {
+        await sendPurchaseConfirmation(buyerEmail, {
+          orderNumber: orderNumber || order.id.slice(0, 8).toUpperCase(),
+          eventName,
+          photoCount: cartItems.length,
+          total: totalAmount,
+          downloadLink: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://becotoy.com'}/dashboard/cliente`,
+        });
+      }
+
+      // Email para o fotógrafo
+      if (photographerEmail) {
+        await sendNewSaleNotification(photographerEmail, {
+          eventName,
+          photoCount: cartItems.length,
+          total: totalAmount,
+        });
+      }
+    } catch (err) {
+      console.error('[Payment] Erro ao enviar notificação por email:', err);
+    }
+  })();
 
   return {
     alreadyProcessed: false,

@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient, getAuthenticatedUser } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
 
+// #region debug-point photos-1
+const DEBUG_SERVER_URL = process.env.DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
+const DEBUG_SESSION_ID = process.env.DEBUG_SESSION_ID || 'photos-not-appearing-dashboard';
+async function debugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: DEBUG_SESSION_ID, event, ...data, timestamp: new Date().toISOString() }),
+    });
+  } catch {}
+}
+// #endregion debug-point photos-1
+
 async function getActorContext(userId: string) {
   const serviceSupabase = createServiceClient();
 
@@ -38,6 +52,14 @@ export async function POST(request: Request) {
       .single();
 
     if (!event || (event.photographer_id !== user.id && role !== 'admin')) {
+      // #region debug-point photos-post-1
+      await debugLog('photos-post-forbidden', {
+        userId: user.id,
+        eventId: event_id,
+        role,
+        eventPhotographerId: event?.photographer_id ?? null,
+      });
+      // #endregion debug-point photos-post-1
       return NextResponse.json({ error: 'Sem permissão para adicionar fotos neste evento' }, { status: 403 });
     }
 
@@ -52,6 +74,19 @@ export async function POST(request: Request) {
       })
       .select()
       .single();
+
+    // #region debug-point photos-post-2
+    await debugLog('photos-post-result', {
+      userId: user.id,
+      eventId: event_id,
+      role,
+      success: !error,
+      error: error?.message,
+      photoId: data?.id ?? null,
+      storagePathOriginal: storage_path_original,
+      storagePathWatermark: storage_path_watermark,
+    });
+    // #endregion debug-point photos-post-2
 
     if (error) {
       console.error('Error creating photo:', error);
@@ -89,6 +124,14 @@ export async function GET(request: Request) {
       .single();
 
     if (eventError || !event) {
+      // #region debug-point photos-get-1
+      await debugLog('photos-get-event-missing', {
+        eventId,
+        userId: user?.id ?? null,
+        role,
+        eventError: eventError?.message,
+      });
+      // #endregion debug-point photos-get-1
       return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
     }
 
@@ -96,6 +139,15 @@ export async function GET(request: Request) {
       event.status === 'published' || (user && (event.photographer_id === user.id || role === 'admin'));
 
     if (!canView) {
+      // #region debug-point photos-get-2
+      await debugLog('photos-get-forbidden', {
+        eventId,
+        userId: user?.id ?? null,
+        role,
+        eventStatus: event.status,
+        eventPhotographerId: event.photographer_id,
+      });
+      // #endregion debug-point photos-get-2
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
@@ -104,6 +156,18 @@ export async function GET(request: Request) {
       .select('*')
       .eq('event_id', eventId)
       .order('created_at', { ascending: true });
+
+    // #region debug-point photos-get-3
+    await debugLog('photos-get-result', {
+      eventId,
+      userId: user?.id ?? null,
+      role,
+      success: !error,
+      error: error?.message,
+      count: data?.length ?? 0,
+      photoIds: (data || []).map((photo) => photo.id),
+    });
+    // #endregion debug-point photos-get-3
 
     if (error) {
       console.error('Error fetching photos:', error);

@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
 
+// #region debug-point upload-1
+const DEBUG_SERVER_URL = process.env.DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
+const DEBUG_SESSION_ID = process.env.DEBUG_SESSION_ID || 'photos-not-appearing-dashboard';
+async function debugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: DEBUG_SESSION_ID, event, ...data, timestamp: new Date().toISOString() }),
+    });
+  } catch {}
+}
+// #endregion debug-point upload-1
+
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
 const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -75,6 +89,19 @@ export async function POST(request: Request) {
         contentType: file.type,
         upsert: false,
       });
+
+    // #region debug-point upload-2
+    await debugLog('upload-storage-result', {
+      userId: user.id,
+      eventId,
+      type,
+      bucket,
+      fileName,
+      success: !error,
+      error: error?.message,
+      path: data?.path,
+    });
+    // #endregion debug-point upload-2
 
     if (error) {
       console.error('Upload error:', error);

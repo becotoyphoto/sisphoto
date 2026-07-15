@@ -13,6 +13,8 @@ interface Category {
 interface UploadedPhoto {
   id: string;
   url: string;
+  publicUrl: string;
+  storagePath: string;
   name: string;
 }
 
@@ -46,6 +48,7 @@ export default function EditEventPage() {
     date: '',
     cover_image_url: '',
     status: 'draft',
+    price: '15.00',
   });
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function EditEventPage() {
 
         if (evtRes.ok) {
           const evt = await evtRes.json();
+          const firstPhotoPrice = evt.photos?.[0]?.price;
           setFormData({
             name: evt.name || '',
             description: evt.description || '',
@@ -71,6 +75,7 @@ export default function EditEventPage() {
             date: evt.date || '',
             cover_image_url: evt.cover_image_url || '',
             status: evt.status || 'draft',
+            price: firstPhotoPrice ? String(firstPhotoPrice) : '15.00',
           });
 
           // Load uploaded photos for cover picker
@@ -93,11 +98,14 @@ export default function EditEventPage() {
               });
               if (signedRes.ok) {
                 const { urls } = await signedRes.json();
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
                 const photos: UploadedPhoto[] = photosData
                   .filter((p: any) => urls[p.id])
                   .map((p: any) => ({
                     id: p.id,
                     url: urls[p.id],
+                    publicUrl: `${supabaseUrl}/storage/v1/object/public/photos/${p.storage_path_watermark}`,
+                    storagePath: p.storage_path_watermark,
                     name: p.storage_path_watermark.split('/').pop() || 'Foto',
                   }));
                 setUploadedPhotos(photos);
@@ -320,16 +328,16 @@ export default function EditEventPage() {
                           key={photo.id}
                           type="button"
                           className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 transition-colors text-left ${
-                            formData.cover_image_url === photo.url ? 'bg-primary/10 ring-1 ring-primary' : ''
+                            formData.cover_image_url === photo.publicUrl ? 'bg-primary/10 ring-1 ring-primary' : ''
                           }`}
                           onClick={() => {
-                            setFormData(prev => ({ ...prev, cover_image_url: photo.url }));
+                            setFormData(prev => ({ ...prev, cover_image_url: photo.publicUrl }));
                             setShowPhotoPicker(false);
                           }}
                         >
                           <img src={photo.url} alt="" className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
                           <span className="text-sm truncate">{photo.name}</span>
-                          {formData.cover_image_url === photo.url && (
+                          {formData.cover_image_url === photo.publicUrl && (
                             <span className="ml-auto text-xs text-primary font-bold">CAPA</span>
                           )}
                         </button>
@@ -371,6 +379,22 @@ export default function EditEventPage() {
             </select>
             <p className="text-xs text-muted-foreground mt-1">
               Eventos em rascunho não são visíveis ao público.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Preço por foto (R$)</label>
+            <input
+              type="number"
+              name="price"
+              step="0.01"
+              min="0.01"
+              value={formData.price}
+              onChange={handleChange}
+              className="w-full md:w-48 bg-white/5 border border-white/10 rounded-xl py-3 px-4 focus:ring-2 focus:ring-primary focus:outline-none"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Altera o preço de todas as fotos do evento. Pedidos já concluídos não são afetados.
             </p>
           </div>
 

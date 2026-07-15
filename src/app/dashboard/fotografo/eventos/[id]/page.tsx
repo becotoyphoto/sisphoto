@@ -54,6 +54,10 @@ export default function EventUploadPage() {
   const [ignoredFiles, setIgnoredFiles] = useState<string[]>([]);
   const [duplicateFiles, setDuplicateFiles] = useState<string[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [justUploadedPhotos, setJustUploadedPhotos] = useState<{ id: string; previewUrl: string; watermarkPath: string }[]>([]);
+  const [selectedCoverPhotoId, setSelectedCoverPhotoId] = useState<string | null>(null);
+  const [savingCover, setSavingCover] = useState(false);
 
   const getFileFingerprint = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
 
@@ -267,7 +271,7 @@ export default function EventUploadPage() {
     }
   };
 
-  const uploadPhoto = async (photo: PhotoUpload): Promise<{ success: boolean; error?: string }> => {
+  const uploadPhoto = async (photo: PhotoUpload): Promise<{ success: boolean; error?: string; photoId?: string; watermarkPath?: string }> => {
     if (!photo.watermarkFile) return { success: false, error: 'Marca d\'água não aplicada' };
 
     try {
@@ -339,7 +343,7 @@ export default function EventUploadPage() {
 
       await loadExistingPhotos();
 
-      return { success: true };
+      return { success: true, photoId: createdPhoto?.id, watermarkPath };
     } catch (error) {
       console.error('Upload error:', error);
       return {
@@ -358,6 +362,7 @@ export default function EventUploadPage() {
     }
     
     setIsUploading(true);
+    const uploadedBatch: { id: string; previewUrl: string; watermarkPath: string }[] = [];
     
     for (const photo of photosToUpload) {
       setPhotos(prev => prev.map(p => 
@@ -369,9 +374,29 @@ export default function EventUploadPage() {
       setPhotos(prev => prev.map(p =>
         p.id === photo.id ? { ...p, status: result.success ? 'done' : 'error', error: result.error } : p
       ));
+
+      if (result.success && result.photoId && result.watermarkPath) {
+        const signedRes = await fetch('/api/signed-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: result.watermarkPath, bucket: 'photos' }),
+        });
+        const signedData = await signedRes.json().catch(() => ({}));
+        uploadedBatch.push({
+          id: result.photoId,
+          previewUrl: signedData.url || photo.preview,
+          watermarkPath: result.watermarkPath,
+        });
+      }
     }
     
     setIsUploading(false);
+
+    if (uploadedBatch.length > 0) {
+      setJustUploadedPhotos(uploadedBatch);
+      setSelectedCoverPhotoId(uploadedBatch[0].id);
+      setShowCoverModal(true);
+    }
   };
 
   const removePhoto = (photoId: string) => {
@@ -402,6 +427,52 @@ export default function EventUploadPage() {
     clearQueuedPhotos();
     existingPhotosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [clearQueuedPhotos]);
+
+  const getPublicUrl = (storagePath: string) => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    return `${supabaseUrl}/storage/v1/object/public/photos/${storagePath}`;
+  };
+
+  const handleConfirmCover = useCallback(async () => {
+    if (!selectedCoverPhotoId) return;
+    setSavingCover(true);
+    try {
+      const selectedPhoto = justUploadedPhotos.find(p => p.id === selectedCoverPhotoId);
+      if (selectedPhoto) {
+        await fetch(`/api/events/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cover_image_url: getPublicUrl(selectedPhoto.watermarkPath) }),
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao salvar capa:', err);
+    } finally {
+      setSavingCover(false);
+      setShowCoverModal(false);
+      clearQueuedPhotos();
+    }
+  }, [selectedCoverPhotoId, justUploadedPhotos, id, clearQueuedPhotos]);
+
+  const handleSkipCover = useCallback(async () => {
+    if (justUploadedPhotos.length > 0) {
+      setSavingCover(true);
+      try {
+        const firstPhoto = justUploadedPhotos[0];
+        await fetch(`/api/events/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cover_image_url: getPublicUrl(firstPhoto.watermarkPath) }),
+        });
+      } catch (err) {
+        console.error('Erro ao salvar capa padrão:', err);
+      } finally {
+        setSavingCover(false);
+      }
+    }
+    setShowCoverModal(false);
+    clearQueuedPhotos();
+  }, [justUploadedPhotos, id, clearQueuedPhotos]);
 
   const handleDeleteExistingPhoto = async (photoId: string) => {
     const confirmed = window.confirm('Excluir esta foto do evento?');
@@ -721,6 +792,68 @@ export default function EventUploadPage() {
           </div>
         )}
       </div>
+
+      {/* Cover Photo Selection Modal */}
+      {showCoverModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-card border border-white/10 rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-2">Escolha a foto de capa</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Selecione uma foto para ser a capa do evento. Se pular, a primeira foto será usada.
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
+              {justUploadedPhotos.map((photo) => (
+                <button
+                  key={photo.id}
+                  onClick={() => setSelectedCoverPhotoId(photo.id)}
+                  className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-colors ${
+                    selectedCoverPhotoId === photo.id
+                      ? 'border-primary ring-2 ring-primary/50'
+                      : 'border-transparent hover:border-white/20'
+                  }`}
+                >
+                  <NextImage
+                    src={photo.previewUrl}
+                    alt="Foto candidata a capa"
+                    fill
+                    sizes="(max-width: 640px) 33vw, 25vw"
+                    unoptimized
+                    className="object-cover"
+                  />
+                  {selectedCoverPhotoId === photo.id && (
+                    <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
+                      <Check className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3 justify-end">
+              <button
+                onClick={handleSkipCover}
+                disabled={savingCover}
+                className="px-5 py-2.5 rounded-xl border border-white/10 text-sm font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                Pular (usar primeira foto)
+              </button>
+              <button
+                onClick={handleConfirmCover}
+                disabled={savingCover || !selectedCoverPhotoId}
+                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {savingCover ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </span>
+                ) : (
+                  'Confirmar capa'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

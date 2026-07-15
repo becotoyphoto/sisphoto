@@ -178,6 +178,9 @@ export async function POST(request: Request) {
     const client = new MercadoPagoConfig({ accessToken: accessToken as string });
     const paymentClient = new Payment(client);
 
+    // Gera chave de idempotência única (UUID v4) para cada pagamento - obrigatório para PIX
+    const idempotencyKey = crypto.randomUUID();
+
     const result = await paymentClient.create({
       body: {
         transaction_amount: Number(totalAmount.toFixed(2)),
@@ -197,6 +200,9 @@ export async function POST(request: Request) {
           cart_id: cartId ?? null,
           order_number: externalRef,
         },
+      },
+      requestOptions: {
+        idempotencyKey,
       },
     });
 

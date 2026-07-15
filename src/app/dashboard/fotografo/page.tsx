@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useEffectEvent } from 'react';
-import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, MapPin, Edit, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight, Trash2 } from 'lucide-react';
+import { Plus, Camera, DollarSign, Image as ImageIcon, Loader2, MapPin, Upload, Eye, EyeOff, TrendingUp, Wallet, ArrowRight, Trash2, Sparkles, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +40,22 @@ interface SalesData {
   photographerEarnings: number;
   platformCommission: number;
   pendingWithdrawals: number;
+}
+
+function getEventStatusInfo(event: PhotographerEvent, hasSales: boolean) {
+  const photoCount = event.photos?.[0]?.count || 0;
+  const isPublished = event.status === 'published';
+
+  if (isPublished && hasSales) {
+    return { label: 'Com Vendas', color: 'bg-purple-500/10 text-purple-500', icon: Sparkles };
+  }
+  if (isPublished) {
+    return { label: 'Publicado', color: 'bg-green-500/10 text-green-500', icon: null };
+  }
+  if (photoCount > 0) {
+    return { label: 'Fotos Enviadas', color: 'bg-blue-500/10 text-blue-500', icon: null };
+  }
+  return { label: 'Rascunho', color: 'bg-yellow-500/10 text-yellow-500', icon: null };
 }
 
 export default function PhotographerDashboardPage() {
@@ -318,7 +334,9 @@ function PhotographerDashboard() {
           <>
             {/* Mobile card layout */}
             <div className="sm:hidden space-y-4">
-              {events.map((event) => (
+              {events.map((event) => {
+                const statusInfo = getEventStatusInfo(event, (salesData?.totalPhotosSold || 0) > 0);
+                return (
                 <div key={event.id} className="bg-card border border-white/10 rounded-2xl p-4">
                   <div className="flex items-center gap-3 mb-3">
                     {event.cover_image_url ? (
@@ -333,23 +351,28 @@ function PhotographerDashboard() {
                         />
                       </div>
                     ) : (
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                      <div className="relative w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                         <Camera className="h-6 w-6 text-muted-foreground" />
+                        <AlertTriangle className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{event.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{event.name}</p>
+                        {!event.cover_image_url && (
+                          <span title="Sem imagem de capa">
+                            <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
                         {event.city}, {event.state}
                       </p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${
-                      event.status === 'published' 
-                        ? 'bg-green-500/10 text-green-500' 
-                        : 'bg-yellow-500/10 text-yellow-500'
-                    }`}>
-                      {event.status === 'published' ? 'Publicado' : 'Rascunho'}
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 flex items-center gap-1 ${statusInfo.color}`}>
+                      {statusInfo.icon && <statusInfo.icon className="h-3 w-3" />}
+                      {statusInfo.label}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
@@ -378,9 +401,16 @@ function PhotographerDashboard() {
                     <Link 
                       href={`/dashboard/fotografo/eventos/${event.id}/editar`}
                       className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                      title="Editar"
+                      title="Editar Capa"
                     >
-                      <Edit className="h-5 w-5 text-muted-foreground" />
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </Link>
+                    <Link 
+                      href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                      className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                      title="Editar Preço"
+                    >
+                      <DollarSign className="h-5 w-5 text-muted-foreground" />
                     </Link>
                     {event.status !== 'published' && (
                       <button
@@ -410,7 +440,8 @@ function PhotographerDashboard() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Desktop table layout */}
@@ -427,7 +458,9 @@ function PhotographerDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
-                    {events.map((event) => (
+                    {events.map((event) => {
+                      const statusInfo = getEventStatusInfo(event, (salesData?.totalPhotosSold || 0) > 0);
+                      return (
                       <tr key={event.id}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -443,12 +476,20 @@ function PhotographerDashboard() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                              <div className="relative w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                                 <Camera className="h-6 w-6 text-muted-foreground" />
+                                <AlertTriangle className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
                               </div>
                             )}
                             <div>
-                              <p className="font-medium">{event.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{event.name}</p>
+                                {!event.cover_image_url && (
+                                  <span title="Sem imagem de capa">
+                                    <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
                                 {event.city}, {event.state}
@@ -463,12 +504,9 @@ function PhotographerDashboard() {
                           {event.photos?.[0]?.count || 0}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            event.status === 'published' 
-                              ? 'bg-green-500/10 text-green-500' 
-                              : 'bg-yellow-500/10 text-yellow-500'
-                          }`}>
-                            {event.status === 'published' ? 'Publicado' : 'Rascunho'}
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 ${statusInfo.color}`}>
+                            {statusInfo.icon && <statusInfo.icon className="h-3 w-3" />}
+                            {statusInfo.label}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -483,9 +521,16 @@ function PhotographerDashboard() {
                             <Link 
                               href={`/dashboard/fotografo/eventos/${event.id}/editar`}
                               className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                              title="Editar"
+                              title="Editar Capa"
                             >
-                              <Edit className="h-5 w-5 text-muted-foreground" />
+                              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                            </Link>
+                            <Link 
+                              href={`/dashboard/fotografo/eventos/${event.id}/editar`}
+                              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                              title="Editar Preço"
+                            >
+                              <DollarSign className="h-5 w-5 text-muted-foreground" />
                             </Link>
                             {event.status === 'published' ? (
                               <Link 
@@ -525,7 +570,8 @@ function PhotographerDashboard() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

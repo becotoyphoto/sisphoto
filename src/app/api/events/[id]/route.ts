@@ -171,7 +171,35 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const body = await request.json();
-    const { name, description, category_id, city, state, date, cover_image_url, status } = body;
+    const { name, description, category_id, city, state, date, cover_image_url, status, price } = body;
+
+    // Check for duplicate event name when name is being changed (case-insensitive, per photographer)
+    if (name) {
+      const trimmedName = name.trim();
+      const { data: currentEvent } = await service
+        .from('events')
+        .select('photographer_id')
+        .eq('id', id)
+        .single();
+
+      if (currentEvent) {
+        const { data: duplicateEvent } = await service
+          .from('events')
+          .select('id')
+          .eq('photographer_id', currentEvent.photographer_id)
+          .ilike('name', trimmedName)
+          .neq('id', id)
+          .limit(1)
+          .maybeSingle();
+
+        if (duplicateEvent) {
+          return NextResponse.json(
+            { error: 'Já existe um evento com esse nome. Escolha outro nome ou edite o evento existente.' },
+            { status: 409 }
+          );
+        }
+      }
+    }
 
     const { data, error } = await service
       .from('events')
@@ -192,6 +220,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     if (error) {
       console.error('Error updating event:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Update price for all photos in this event (only affects future sales)
+    if (price !== undefined && price !== null) {
+      const numericPrice = parseFloat(price);
+      if (!isNaN(numericPrice) && numericPrice > 0) {
+        await service
+          .from('photos')
+          .update({ price: numericPrice })
+          .eq('event_id', id);
+      }
     }
 
     return NextResponse.json(data);

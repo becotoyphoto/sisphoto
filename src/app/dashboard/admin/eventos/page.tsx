@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Camera, Loader2, Trash2, Edit, Eye, Plus, Search, Filter, X } from 'lucide-react';
+import { ArrowLeft, Camera, Loader2, Trash2, Edit, Eye, Plus, Search, Filter, X, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -39,12 +39,15 @@ export default function AdminEventsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [photographerFilter, setPhotographerFilter] = useState('');
+  const [photographers, setPhotographers] = useState<{ id: string; full_name: string }[]>([]);
 
   const loadEvents = async () => {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (statusFilter) params.set('status', statusFilter);
+      if (photographerFilter) params.set('photographer_id', photographerFilter);
 
       const response = await fetch(`/api/events?${params.toString()}`);
       if (response.ok) {
@@ -62,6 +65,15 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     loadEvents();
+    // Load photographers for filter
+    fetch('/api/admin/photographers')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPhotographers(data.map((p: any) => ({ id: p.id, full_name: p.full_name || 'Sem nome' })));
+        }
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -73,6 +85,7 @@ export default function AdminEventsPage() {
   const clearFilters = () => {
     setSearch('');
     setStatusFilter('');
+    setPhotographerFilter('');
     setIsLoading(true);
     setTimeout(loadEvents, 0);
   };
@@ -181,7 +194,19 @@ export default function AdminEventsPage() {
           <option value="published">Publicado</option>
           <option value="archived">Arquivado</option>
         </select>
-        {(search || statusFilter) && (
+        {photographers.length > 0 && (
+          <select
+            value={photographerFilter}
+            onChange={(e) => { setPhotographerFilter(e.target.value); setIsLoading(true); setTimeout(loadEvents, 0); }}
+            className="bg-card border border-white/10 rounded-xl py-3 px-4 outline-none"
+          >
+            <option value="">Todos os fotógrafos</option>
+            {photographers.map(p => (
+              <option key={p.id} value={p.id}>{p.full_name}</option>
+            ))}
+          </select>
+        )}
+        {(search || statusFilter || photographerFilter) && (
           <button
             onClick={clearFilters}
             className="inline-flex items-center gap-1 px-4 py-2 text-sm text-muted-foreground hover:text-white transition-colors"
@@ -231,12 +256,20 @@ export default function AdminEventsPage() {
                             className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center relative">
                             <Camera className="h-6 w-6 text-muted-foreground" />
+                            <AlertTriangle className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
                           </div>
                         )}
                         <div>
-                          <p className="font-medium">{event.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{event.name}</p>
+                            {!event.cover_image_url && (
+                              <span title="Sem imagem de capa">
+                                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">{event.city}, {event.state}</p>
                         </div>
                       </div>

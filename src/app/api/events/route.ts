@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { createServiceClient } from '@/lib/supabase-service';
 
+// #region debug-point events-1
+const DEBUG_SERVER_URL = process.env.DEBUG_SERVER_URL || 'http://127.0.0.1:7777/event';
+const DEBUG_SESSION_ID = process.env.DEBUG_SESSION_ID || 'photos-not-appearing-dashboard';
+async function debugLog(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(DEBUG_SERVER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session: DEBUG_SESSION_ID, event, ...data, timestamp: new Date().toISOString() }),
+    });
+  } catch {}
+}
+// #endregion debug-point events-1
+
 async function getProfileContext(userId: string) {
   const serviceSupabase = createServiceClient();
   const { data: profile } = await serviceSupabase
@@ -38,6 +52,23 @@ export async function POST(request: Request) {
     }
 
     const effectivePhotographerId = isAdmin && photographer_id ? photographer_id : user.id;
+
+    // Check for duplicate event name (case-insensitive, per photographer)
+    const trimmedName = name.trim();
+    const { data: existingEvent } = await serviceSupabase
+      .from('events')
+      .select('id')
+      .eq('photographer_id', effectivePhotographerId)
+      .ilike('name', trimmedName)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingEvent) {
+      return NextResponse.json(
+        { error: 'Já existe um evento com esse nome. Escolha outro nome ou edite o evento existente.' },
+        { status: 409 }
+      );
+    }
 
     const { data, error } = await serviceSupabase
       .from('events')
@@ -87,6 +118,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
+    const photographerId = searchParams.get('photographer_id') || '';
 
     let query = serviceSupabase
       .from('events')
@@ -107,6 +139,10 @@ export async function GET(request: Request) {
       query = query.eq('photographer_id', user.id);
     }
 
+    if (photographerId && isAdmin) {
+      query = query.eq('photographer_id', photographerId);
+    }
+
     if (status && ['draft', 'published', 'archived'].includes(status)) {
       query = query.eq('status', status);
     }
@@ -116,6 +152,19 @@ export async function GET(request: Request) {
     }
 
     const { data: events, error } = await query;
+
+    // #region debug-point events-2
+    await debugLog('events-get-base-result', {
+      userId: user.id,
+      isAdmin,
+      search,
+      statusFilter: status,
+      success: !error,
+      error: error?.message,
+      eventCount: events?.length ?? 0,
+      eventIds: (events || []).map((event) => event.id),
+    });
+    // #endregion debug-point events-2
 
     if (error) {
       console.error('Error fetching events:', error);
@@ -145,6 +194,18 @@ export async function GET(request: Request) {
       ...event,
       photos: [{ count: photoCountByEventId.get(event.id) || 0 }],
     }));
+
+    // #region debug-point events-3
+    await debugLog('events-get-final-result', {
+      userId: user.id,
+      data: data.map((event) => ({
+        id: event.id,
+        name: event.name,
+        photoCount: event.photos?.[0]?.count || 0,
+        status: event.status,
+      })),
+    });
+    // #endregion debug-point events-3
 
     return NextResponse.json(data);
   } catch (error) {
